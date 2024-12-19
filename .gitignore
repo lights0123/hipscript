@@ -1,0 +1,11 @@
+/*
+!.gitignore
+!polyfill
+!build.sh
+!hip
+!wasix-sysroot
+!wasmer.toml
+!wasix_toolchain.cmake
+!llvm-project
+!clspv
+!chipStar

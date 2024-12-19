@@ -1,0 +1,43 @@
+[package]
+entrypoint = "clang"
+
+[fs]
+"/sysroot" = "./wasix-sysroot"
+
+[[module]]
+name = "llvm"
+source = "./build/bin/llvm"
+
+[[command]]
+name = "lld"
+module = "llvm"
+runner = "https://webc.org/runner/wasi"
+
+[[command]]
+name = "wasm-ld"
+module = "llvm"
+runner = "https://webc.org/runner/wasi"
+
+[[command]]
+name = "llvm-nm"
+module = "llvm"
+runner = "https://webc.org/runner/wasi"
+
+[[command]]
+name = "llvm-ar"
+module = "llvm"
+runner = "https://webc.org/runner/wasi"
+
+[[command]]
+name = "clang"
+module = "llvm"
+runner = "https://webc.org/runner/wasi"
+
+[command.annotations.wasi]
+env = ["PATH=/bin"]
+exec-name = "clang"
+
+[[command]]
+name = "clang++"
+module = "llvm"
+runner = "https://webc.org/runner/wasi"

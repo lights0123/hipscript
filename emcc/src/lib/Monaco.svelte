@@ -8,13 +8,17 @@
 
 	let editorElement: HTMLElement;
 	let editor: Monaco.editor.IStandaloneCodeEditor;
-	onMount(async () => {
+
+	const SCHEME = '(prefers-color-scheme: dark)';
+
+	onMount(() => {
 		self.MonacoEnvironment = {
 			getWorker(_, label) {
 				console.log(_, label);
 				return new editorWorker();
 			}
 		};
+		const darkMode = matchMedia(SCHEME);
 
 		// import('monaco-editor/esm/vs/basic-languages/cpp/cpp.contribution')
 		// const Monaco = await import('monaco-editor/esm/vs/editor/editor.api');
@@ -22,9 +26,17 @@
 		editor = Monaco.editor.create(editorElement, {
 			value: contents,
 			language: 'cpp',
-			automaticLayout: true
+			automaticLayout: true,
+			theme: darkMode.matches ? 'vs-dark' : 'vs'
 		});
+		window.editor = editor;
+		function handleChange(e: MediaQueryList | MediaQueryListEvent) {
+			Monaco.editor.setTheme(e.matches ? 'vs-dark' : 'vs');
+		}
+		handleChange(darkMode);
 		// Monaco.languages.register(cpp);
+		darkMode.addEventListener('change', handleChange);
+		return () => darkMode.removeEventListener('change', handleChange);
 	});
 
 	export function getData() {

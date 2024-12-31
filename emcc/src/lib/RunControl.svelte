@@ -103,38 +103,45 @@
 	);
 </script>
 
-<div class="flex h-full flex-col overflow-hidden p-2">
+<div class="flex h-full flex-col overflow-hidden p-2 dark:bg-slate-900 dark:text-white">
 	<h2 class="text-center text-2xl font-bold">Select GPU</h2>
 	<div class="grid grid-cols-2 space-x-2 font-medium">
 		{#each options as o, i}
 			<button
 				onclick={() => (selected = i)}
 				class={'my-2 rounded border p-1 capitalize transition-colors' +
-					(i === selected ? ' bg-green-200 text-green-950' : ' bg-white')}
+					(i === selected
+						? ' bg-green-200 text-green-950 dark:bg-green-900 dark:text-green-100'
+						: ' bg-transparent text-black dark:text-white')}
 				>{o.adapter.info.vendor} {o.adapter.info.architecture}</button
 			>
 		{/each}
 	</div>
 
-	<ul>
-		{#each limitDesc as limit}
-			<li
-				class={'flex' +
-					(limit.warn && ({ info: ' text-blue-800' }[limit.warnLevel!] || ' text-orange-700'))}
-				title={(limit.desc || '') + (limit.warn ? limit.warnDesc : '')}
-			>
-				{limit.name}: {limit.num}
-				{#if limit.warn}
-					<span class="ml-1">
-						{@html { info: InfoCircle }[limit.warnLevel!] || ErrorTriangle}
-					</span>
-				{/if}
-			</li>
-		{/each}
-	</ul>
+	<details open>
+		<summary>GPU Information</summary>
+		<ul>
+			{#each limitDesc as limit}
+				<li
+					class={'flex' +
+						(limit.warn &&
+							({ info: ' text-blue-800 dark:text-blue-300' }[limit.warnLevel!] ||
+								' text-orange-700 dark:text-orange-300'))}
+					title={(limit.desc || '') + (limit.warn ? limit.warnDesc : '')}
+				>
+					{limit.name}: {limit.num}
+					{#if limit.warn}
+						<span class="ml-1">
+							{@html { info: InfoCircle }[limit.warnLevel!] || ErrorTriangle}
+						</span>
+					{/if}
+				</li>
+			{/each}
+		</ul>
+	</details>
 	<button
 		onclick={click}
-		class="mt-2 w-full rounded bg-blue-500 px-4 py-2 font-bold text-white hover:bg-blue-700"
+		class={"mt-2 w-full rounded px-4 py-2 font-bold" + (compiling ? ' bg-red-500 text-white hover:bg-red-700' : ' bg-blue-500 text-white hover:bg-blue-700')}
 	>
 		{#if compiling}
 			Cancel
@@ -150,9 +157,12 @@
 		</div>
 		<ol class="-mx-2 flex h-full flex-col divide-y overflow-y-auto tabular-nums">
 			{#each kernels?.kernels as kernel, i}
-				<li class={'px-2 py-1' + (kernel.status && ' bg-orange-200')} title={kernel.status}>
+				<li
+					class={'px-2 py-1' + (kernel.status && ' bg-orange-200 dark:bg-orange-950')}
+					title={kernel.status}
+				>
 					{#if kernel.status}
-						<span class="flex font-bold text-orange-950">
+						<span class="flex font-bold text-orange-950 dark:text-orange-200">
 							{@html ErrorTriangle}
 							<span class="ml-1">
 								{kernel.status === 'aborted' ? 'Aborted' : 'Error: hover for details'}

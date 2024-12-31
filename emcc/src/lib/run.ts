@@ -385,6 +385,8 @@ export async function compile(
 				return path;
 			}
 		};
+		// the first kernel to use printf is really slow without this
+		device.queue.writeBuffer(mod.wgpuPrintfBuffer, 0, new Uint32Array([0]));
 		await Module(mod);
 		window.Module = mod;
 		await promise;
@@ -398,7 +400,6 @@ export async function compile(
 					// 0,
 					// mod.wgpuTimestampReadBuffer.size,
 				);
-				console.log(mod.wgpuTimestampReadBuffer.mapState);
 				const times = new BigUint64Array(
 					mod.wgpuTimestampReadBuffer.getMappedRange(
 						0,

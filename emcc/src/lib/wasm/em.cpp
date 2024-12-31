@@ -57,7 +57,9 @@ hipError_t EMSCRIPTEN_KEEPALIVE hipMalloc(void **ptr, size_t size) {
     device.PopErrorScope(
         [](WGPUErrorType type, char const *message, void *ctx) {
           auto &data = *reinterpret_cast<decltype(d) *>(ctx);
-          printf("%d %s\n", type, message);
+          if (message) {
+            printf("\x1b[1;93m%s\x1b[0m\n", message);
+          }
           if (type) {
             *data.first = nullptr;
           }
@@ -65,7 +67,9 @@ hipError_t EMSCRIPTEN_KEEPALIVE hipMalloc(void **ptr, size_t size) {
           device.PopErrorScope(
               [](WGPUErrorType type, char const *message, void *ctx) {
                 auto &data = *reinterpret_cast<decltype(d) *>(ctx);
-                printf("%d %s\n", type, message);
+                if (message) {
+                  printf("\x1b[1;93m%s\x1b[0m\n", message);
+                }
                 if (type) {
                   *data.first = nullptr;
                 }

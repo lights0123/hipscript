@@ -1,10 +1,10 @@
-#include <hip/hip_runtime.h>
-
 #include "hip/hip_runtime_api.h"
+#include "impl.hpp"
 #include "printf.hpp"
 
 #include <cstring>
 #include <emscripten.h>
+#include <emscripten/em_macros.h>
 #include <emscripten/html5_webgpu.h>
 #include <emscripten/proxying.h>
 #include <emscripten/threading.h>
@@ -33,7 +33,7 @@ static void initializeWebGPU() {
 }
 hipError_t EMSCRIPTEN_KEEPALIVE hipMalloc(void **ptr, size_t size) {
   if (!ptr)
-    return hipErrorInvalidValue;
+    RETURN(hipErrorInvalidValue);
   if (size == 0) {
     *ptr = nullptr;
     return hipSuccess;
@@ -81,11 +81,45 @@ hipError_t EMSCRIPTEN_KEEPALIVE hipMalloc(void **ptr, size_t size) {
         &d);
   });
   if (!buffer) {
-    return hipErrorOutOfMemory;
+    RETURN(hipErrorOutOfMemory);
   }
 
   *ptr = reinterpret_cast<void *>(buffer.MoveToCHandle());
   return hipSuccess;
+}
+
+static uintptr_t user_buffer_start = 0;
+
+hipError_t EMSCRIPTEN_KEEPALIVE hipFree(void *ptr) {
+  if (ptr == nullptr)
+    return hipSuccess;
+  if (reinterpret_cast<uintptr_t>(ptr) < user_buffer_start) {
+    RETURN(hipErrorInvalidValue);
+  }
+
+  std::pair d{false, emscripten::ProxyingQueue::ProxyingCtx{}};
+  w_queue.proxySyncWithCtx(emscripten_main_runtime_thread_id(), [&](auto ctx) {
+    d.second = ctx;
+    device.PushErrorScope(wgpu::ErrorFilter::Validation);
+    wgpu::Buffer buffer =
+        wgpu::Buffer::Acquire(reinterpret_cast<WGPUBufferImpl *>(ptr));
+    buffer = nullptr;
+
+    device.PopErrorScope(
+        [](WGPUErrorType type, char const *message, void *ctx) {
+          auto &data = *reinterpret_cast<decltype(d) *>(ctx);
+          if (message) {
+            printf("\x1b[1;93m%s\x1b[0m\n", message);
+          }
+          if (type) {
+            data.first = true;
+          }
+
+          data.second.finish();
+        },
+        &d);
+  });
+  RETURN(d.first ? hipErrorInvalidValue : hipSuccess);
 }
 
 extern "C" {
@@ -101,9 +135,8 @@ hipError_t EMSCRIPTEN_KEEPALIVE hipMemcpy(void *dst, const void *src,
   if (sizeBytes == 0)
     return hipSuccess;
   if (!dst || !src)
-    return hipErrorInvalidValue;
-  // my_js();
-  // Initialize WebGPU if needed
+    RETURN(hipErrorInvalidValue);
+
   if (kind == hipMemcpyHostToHost) {
     memcpy(dst, src, sizeBytes);
     return hipSuccess;
@@ -113,13 +146,13 @@ hipError_t EMSCRIPTEN_KEEPALIVE hipMemcpy(void *dst, const void *src,
     wasm_hipMemcpy(emscripten_proxy_finish, ctx.ctx, &res, dst, src, sizeBytes,
                    kind);
   });
-  return res;
+  RETURN(res);
 }
 hipError_t EMSCRIPTEN_KEEPALIVE hipGetSymbolAddress(void **DevPtr,
                                                     const void *Symbol) {
   auto it = VariableBufferMap.find(Symbol);
   if (it == VariableBufferMap.end())
-    return hipErrorInvalidSymbol;
+    RETURN(hipErrorInvalidSymbol);
 
   *DevPtr = it->second.Get();
   return hipSuccess;
@@ -132,7 +165,7 @@ hipError_t EMSCRIPTEN_KEEPALIVE hipMemcpyToSymbol(const void *Symbol,
   assert(Offset == 0); // FIXME: fix
   void *data;
   if (hipError_t err = hipGetSymbolAddress(&data, Symbol))
-    return err;
+    RETURN(err);
   return hipMemcpy(data, Src, SizeBytes, Kind);
 }
 
@@ -213,7 +246,7 @@ hipError_t EMSCRIPTEN_KEEPALIVE __hipPushCallConfiguration(
   return hipSuccess;
 } catch (...) {
   // logError("Unexpected error in hipPushCallConfiguration()");
-  return hipErrorUnknown;
+  RETURN(hipErrorUnknown);
 }
 
 hipError_t EMSCRIPTEN_KEEPALIVE __hipPopCallConfiguration(
@@ -234,7 +267,7 @@ hipError_t EMSCRIPTEN_KEEPALIVE __hipPopCallConfiguration(
   return hipSuccess;
 } catch (...) {
   // logError("Unexpected error in hipPopCallConfiguration()");
-  return hipErrorUnknown;
+  RETURN(hipErrorUnknown);
 }
 
 extern "C" {
@@ -270,7 +303,7 @@ hipError_t EMSCRIPTEN_KEEPALIVE hipLaunchKernel(const void *HostFunction,
     exit(1);
   }
 
-  return res;
+  RETURN(res);
 }
 extern "C" void **EMSCRIPTEN_KEEPALIVE
 __hipRegisterFatBinary(const void *Data) {
@@ -307,6 +340,7 @@ extern "C" void EMSCRIPTEN_KEEPALIVE __hipRegisterVar(
   bufferDesc.label = DeviceName;
   wgpu::Buffer buffer = device.CreateBuffer(&bufferDesc);
   VariableBufferMap[Var] = buffer;
+  user_buffer_start = reinterpret_cast<uintptr_t>(buffer.Get());
   wasm_hipRegisterVar(buffer.Get(), DeviceName, Size, Constant);
 }
 

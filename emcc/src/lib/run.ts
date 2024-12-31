@@ -134,20 +134,20 @@ export async function compile(
 			new Promise((resolve, reject) => {
 				w1.onmessage = ({ data }) => {
 					if (data.type === 'res') resolve(data.data);
-					else if (data.type === 'err') reject(data.err);
+					else if (data.type === 'err') reject();
 					else if (data.type === 'feedback') {
 						slave.write(data.data);
-						if (data.err) reject(data.data);
+						if (data.err) reject();
 					}
 				};
 			}),
 			new Promise((resolve, reject) => {
 				w2.onmessage = ({ data }) => {
 					if (data.type === 'res') resolve(data.data);
-					else if (data.type === 'err') reject(data.err);
+					else if (data.type === 'err') reject();
 					else if (data.type === 'feedback') {
 						slave.write(data.data);
-						if (data.err) reject(data.data);
+						if (data.err) reject();
 					}
 				};
 			})
@@ -210,9 +210,16 @@ export async function compile(
 		if (!device) throw 'err';
 		const timestamp = device.features.has('timestamp-query');
 		window.wgpuDevice = device;
+		device.onuncapturederror = (e) => {
+			slave.write('\x1b[1;91m' + e.error.message + '\x1b[0m');
+		};
 
+		device.pushErrorScope('validation');
 		const shaderModule = device.createShaderModule({
 			code: shader // The WGSL shader provided in the variable
+		});
+		await device.popErrorScope().then((s) => {
+			if (s) throw s.message;
 		});
 
 		const map = reflection;
@@ -369,10 +376,11 @@ export async function compile(
 							msg
 								.substring(13)
 								.replaceAll(/^\s*at ([^f][^i][^l][^e]|file\.wasm\.main ).*\n/gm, '')
-								.replace('.__original_main ', '.main ') +
+								.replace('.__original_main ', '.main ')
+								.replace('resolved is not a function', 'Function not implemented') +
 							'\x1b[0m'
 					);
-					resolve(null);
+					mod._raise(9);
 				} else {
 					slave.write('\x1b[1;93m' + msg + '\x1b[0m');
 				}
@@ -389,7 +397,13 @@ export async function compile(
 		device.queue.writeBuffer(mod.wgpuPrintfBuffer, 0, new Uint32Array([0]));
 		await Module(mod);
 		window.Module = mod;
+		aborter.throwIfAborted();
+		function kill() {
+			mod._raise(9);
+		}
+		aborter.addEventListener('abort', kill);
 		await promise;
+		aborter.removeEventListener('abort', kill);
 		mod._stop_bg_threads();
 		setImmediate(() => mod._stop_bg_threads());
 
@@ -413,13 +427,14 @@ export async function compile(
 				console.error(e);
 			}
 		}
-		console.log(mod.wgpuKernelsRan);
 		return {
 			kernels: mod.wgpuKernelsRan,
 			allKernels: [...kernels.keys()].filter(
 				(kernelName) => !kernelName.startsWith(ChipVarInitPrefix)
 			)
 		};
+	} catch (e) {
+		if (e) slave.write('\x1b[1;91m' + e + '\x1b[0m');
 	} finally {
 		console.log('dispose');
 		device?.destroy();

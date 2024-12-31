@@ -8,7 +8,7 @@ const triple = 'wasm32-unknown-emscripten';
 
 // -ftime-trace=main.cpp.json
 
-const commonArgs = `-cc1 -fcolor-diagnostics -dumpdir a- -disable-free -clear-ast-before-backend -disable-llvm-verifier -fno-rounding-math -mconstructor-aliases -debugger-tuning=gdb -fdebug-compilation-dir=/home -fcoverage-compilation-dir=/home -resource-dir /lib/clang/19 -ferror-limit 19 -fhip-new-launch-api -fgnuc-version=4.2.1 -fdeprecated-macro -fskip-odr-check-in-gmf -D__HIP_PLATFORM_SPIRV__= -Duint=uint32_t -Dulong=uint64_t`;
+const commonArgs = `-cc1 -fcolor-diagnostics -dumpdir a- -disable-free -clear-ast-before-backend -disable-llvm-verifier -fno-rounding-math -mconstructor-aliases -debugger-tuning=gdb -fdebug-compilation-dir=/home -fcoverage-compilation-dir=/home -resource-dir /lib/clang/19 -ferror-limit 19 -fhip-new-launch-api -fgnuc-version=4.2.1 -fdeprecated-macro -fskip-odr-check-in-gmf -I/hip/include/cuspv -D__HIP_PLATFORM_SPIRV__= -D__NVCC__ -D__CHIP_CUDA_COMPATIBILITY__ -Duint=uint32_t -Dulong=uint64_t`;
 
 const deviceArgs = `${commonArgs} -main-file-name main.cpp -mrelocation-model static -mframe-pointer=all -aux-target-cpu generic -fcuda-is-device -fcuda-allow-variadic-functions -mllvm -vectorize-loops=false -mllvm -vectorize-slp=false -fvisibility=hidden -fapply-global-visibility-to-externs -mlink-builtin-bitcode /hip/lib/hip-device-lib/hipspv-spirv32.bc -isystem /hip/include -isysroot ${sysroot} -internal-isystem ${sysroot}/include/c++/v1 -internal-isystem ${sysroot}/include/c++/v1 -internal-isystem /lib/clang/19/include -internal-isystem ${sysroot}/include -internal-isystem /lib/clang/19/include -internal-isystem ${sysroot}/include -fno-autolink -fcxx-exceptions -fexceptions --offload-new-driver -mllvm -chipstar -triple spirv32 -aux-triple ${triple} -Wspir-compat`;
 
@@ -100,13 +100,15 @@ async function compile(
 			'clspv-reflection',
 			{
 				stdin: data,
-				args: `/home/file.spv`.split(' '),
+				args: `-d /home/file.spv`.split(' '),
 				mount: {
 					'/home': { 'file.spv': cl }
 				}
 			},
 			false
 		);
+		// no kernels found
+		if (!reflection) return { reflection, cl_proc: new Uint8Array(), shader: '' };
 		const cl_proc = await run('spirv-tools-opt', {
 			args: [
 				'-o',
@@ -141,14 +143,18 @@ override _cuda_shared: u32;
 			cwd: '/home'
 		});
 		const dir = new Directory({ 'file.o': wasm_obj });
-		const wasmMap = await run('wasm-ld', {
-			args: `-mllvm -combiner-global-alias-analysis=false -mllvm -enable-emscripten-sjlj -mllvm -disable-lsr --import-memory --shared-memory --export=__wasm_call_ctors --export=_emscripten_tls_init --export-if-defined=__start_em_asm --export-if-defined=__stop_em_asm --export-if-defined=__start_em_lib_deps --export-if-defined=__stop_em_lib_deps --export-if-defined=__start_em_js --export-if-defined=__stop_em_js --export-if-defined=main --export-if-defined=__main_argc_argv --export-if-defined=__wasm_apply_data_relocs --export-if-defined=fflush --experimental-pic --unresolved-symbols=import-dynamic --no-shlib-sigcheck -shared --no-export-dynamic --print-map --stack-first /home/file.o ${sysroot}/lib/wasm32-emscripten/pic/crtbegin.o -o /home/file.wasm`.split(
-				' '
-			),
-			mount: {
-				'/home': dir
-			}
-		}, false);
+		const wasmMap = await run(
+			'wasm-ld',
+			{
+				args: `-mllvm -combiner-global-alias-analysis=false -mllvm -enable-emscripten-sjlj -mllvm -disable-lsr --import-memory --shared-memory --export=__wasm_call_ctors --export=_emscripten_tls_init --export-if-defined=__start_em_asm --export-if-defined=__stop_em_asm --export-if-defined=__start_em_lib_deps --export-if-defined=__stop_em_lib_deps --export-if-defined=__start_em_js --export-if-defined=__stop_em_js --export-if-defined=main --export-if-defined=__main_argc_argv --export-if-defined=__wasm_apply_data_relocs --export-if-defined=fflush --experimental-pic --unresolved-symbols=import-dynamic --no-shlib-sigcheck -shared --no-export-dynamic --print-map --stack-first /home/file.o ${sysroot}/lib/wasm32-emscripten/pic/crtbegin.o -o /home/file.wasm`.split(
+					' '
+				),
+				mount: {
+					'/home': dir
+				}
+			},
+			false
+		);
 		const wasm = await dir.readFile('file.wasm');
 		dir.free();
 		return { wasm, wasmMap };

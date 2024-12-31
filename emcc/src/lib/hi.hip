@@ -1,118 +1,108 @@
-/*
- * This file is part of hipCPU, a HIP implementation based on OpenMP
- *
- * Copyright (c) 2018,2019 Aksel Alpay
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, this
- *    list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 
-#include <hip/hip_runtime.h>
-#include <vector>
-#include <cassert>
-#include <stdexcept>
-#include <string>
-#include <iostream>
+// Constant memory for lookup table
+__constant__ float const_lookup[256];
 
-void check_error(hipError_t err)
-{
-  if(err != hipSuccess)
-    throw std::runtime_error{"Caught hip error: "+std::to_string(static_cast<int>(err))};
+// Generic kernel template that uses both fixed and dynamic shared memory
+template<typename T, int BLOCK_SIZE>
+__global__ void processingKernel(T* input, T* output, int n, int dynamic_smem_size) {
+    // Fixed-size shared memory
+    __shared__ T fixed_shared[BLOCK_SIZE];
+    // Dynamic shared memory - size determined at runtime
+    extern __shared__ T dynamic_shared[];
+    
+    int tid = threadIdx.x;
+    int gid = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    // Basic bounds checking with assert
+    // assert(tid < BLOCK_SIZE);
+    
+    // Load data into fixed shared memory
+    if (gid < n) {
+        fixed_shared[tid] = input[gid];
+    }
+    __syncthreads();
+    
+    // Use constant memory lookup and store in dynamic shared memory
+    if (tid < dynamic_smem_size) {
+        dynamic_shared[tid] = const_lookup[tid % 256] * fixed_shared[tid];
+        // Debug print
+        printf("Thread %d: dynamic_shared[%d] = \n", tid, tid );//(float)dynamic_shared[tid]);
+    }
+    __syncthreads();
+    
+    // Process and write results
+    if (gid < n) {
+        // Simple processing combining both shared memory results
+        output[gid] = (tid < dynamic_smem_size) ? 
+            fixed_shared[tid] + dynamic_shared[tid % dynamic_smem_size] :
+            fixed_shared[tid];
+    }
 }
 
-template<class T>
-__global__ void vector_add(const T* in_a, const T* in_b, T* out, int start, int num_elements)
-{
-  int gid = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
-  if(threadIdx.x == 0) {
-    printf("%d: %d\n", blockIdx.x, gid);
-  }
-  
-  if(gid >= start && gid < num_elements)
-    out[gid] = in_a[gid] + in_b[gid];
+// Helper kernel to demonstrate more features
+__global__ void initializeKernel(float* data, int n) {
+    int gid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (gid < n) {
+        data[gid] = gid * 0.1f;
+        printf("Initializing data[%d] = \n", gid);//, data[gid]);
+    }
 }
 
-__device__ int globaly = 5;
-__constant__ int consty = 6;
-__constant__ int constz;
-
-__global__ void foo(int* in, int def) {
-  extern __shared__ int shmem[];
-  shmem[threadIdx.x] = in[threadIdx.x + constz] + globaly;
-  __syncthreads();
-  in[threadIdx.x] = shmem[blockDim.x - threadIdx.x - 1] + consty;
-  printf("%s %d\n", "foo bar: ", in[threadIdx.x]);
-  assert(consty > 5);
-}
-
-constexpr std::size_t buff_size = 1024;
-constexpr std::size_t block_size = 16;
-
-static_assert(buff_size % block_size == 0, 
-              "buffer size must be a multiple of the block size");
-  
-int main()
-{
-  std::vector<int> in_a(buff_size);
-  std::vector<int> in_b(buff_size);
-  std::vector<int> result(buff_size);
-  
-  for(std::size_t i = 0; i < buff_size; ++i)
-  {
-    in_a[i] = static_cast<int>(i);
-    in_b[i] = static_cast<int>(i+1);
-  }
-  
-  int *d_in_a, *d_in_b, *d_result;
-  check_error(hipMalloc((void**)&d_in_a, buff_size * sizeof(int)));
-  check_error(hipMalloc((void**)&d_in_b, buff_size * sizeof(int)));
-  check_error(hipMalloc((void**)&d_result, buff_size * sizeof(int)));
-  
-  check_error(hipMemcpy(d_in_a, in_a.data(), buff_size * sizeof(int), hipMemcpyHostToDevice));
-  check_error(hipMemcpy(d_in_b, in_b.data(), buff_size * sizeof(int), hipMemcpyHostToDevice));
-  
-  vector_add<<<buff_size/block_size, block_size>>>(d_in_a, d_in_b, d_result, 0, buff_size);
-  // hipLaunchKernelGGL(vector_add, buff_size/block_size, block_size, 0, 0, 
-  //                    d_in_a, d_in_b, d_result, 0, buff_size);
-  
-  check_error(hipMemcpy(result.data(), d_result, buff_size * sizeof(int), hipMemcpyDeviceToHost));
-  
-  for(std::size_t i = 0; i < result.size(); ++i)
-    assert(result[i] == (in_a[i] + in_b[i]));
-
-  printf("verified!!!\n");
-  
-  for(int i = 0; i < 32; i++) {
-    printf("%d, ", in_a[i]);
-  }
-  printf("\n");
-  int offset = 4;
-  check_error(hipMemcpyToSymbol(consty, &offset, sizeof(int)));
-  foo<<<1, 32, 32 * sizeof(int)>>>(d_in_a, 5);
-
-  int f[32];
-  check_error(hipMemcpy(f, d_in_a, 32 * sizeof(int), hipMemcpyDeviceToHost));
-  for(int i = 0; i < 32; i++) {
-    printf("%d, ", f[i]);
-  }
-  printf("\n");
-  vector_add<<<buff_size/block_size, block_size>>>(d_in_a, d_in_b, d_result, 0, buff_size);
+int main() {
+    const int N = 1024;
+    const int BLOCK_SIZE = 256;
+    const int DYNAMIC_SMEM_SIZE = 128;
+    
+    // Host arrays
+    float *h_input, *h_output;
+    // Device arrays
+    float *d_input, *d_output;
+    
+    // Allocate host memory
+    h_input = new float[N];
+    h_output = new float[N];
+    
+    // Allocate device memory
+    cudaMalloc(&d_input, N * sizeof(float));
+    cudaMalloc(&d_output, N * sizeof(float));
+    
+    // Initialize constant memory lookup table
+    float h_lookup[256];
+    for (int i = 0; i < 256; i++) {
+        h_lookup[i] = sinf(i * 0.1f);
+    }
+    cudaMemcpyToSymbol(const_lookup, h_lookup, 256 * sizeof(float));
+    
+    // Launch initialization kernel
+    int num_blocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    initializeKernel<<<num_blocks, BLOCK_SIZE>>>(d_input, N);
+    
+    // Launch main processing kernel
+    size_t dynamic_smem_bytes = DYNAMIC_SMEM_SIZE * sizeof(float);
+    processingKernel<float, BLOCK_SIZE><<<num_blocks, BLOCK_SIZE, dynamic_smem_bytes>>>(
+        d_input, d_output, N, DYNAMIC_SMEM_SIZE);
+    
+    // Check for errors
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA Error: %s\n", cudaGetErrorString(err));
+        return -1;
+    }
+    
+    // Copy results back to host
+    cudaMemcpy(h_output, d_output, N * sizeof(float), cudaMemcpyDeviceToHost);
+    
+    // Verify results (simple check)
+    printf("First few output values:\n");
+    for (int i = 0; i < 5; i++) {
+        printf("output[%d] = %f\n", i, h_output[i]);
+    }
+    
+    // Cleanup
+    delete[] h_input;
+    delete[] h_output;
+    cudaFree(d_input);
+    cudaFree(d_output);
+    
+    return 0;
 }

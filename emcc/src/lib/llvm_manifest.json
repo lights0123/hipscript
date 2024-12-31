@@ -1,0 +1,42 @@
+{
+	"atoms": { "llvm": { "kind": "https://webc.org/kind/wasm", "signature": "" } },
+	"package": {
+		"fs": [
+			{ "from": null, "mount_path": "/lib/clang", "volume_name": "/build/lib/clang" },
+			{ "from": null, "mount_path": "/sysroot", "volume_name": "/em-sysroot-minimal" },
+			{ "from": null, "mount_path": "/hip", "volume_name": "/hip" }
+		],
+		"wapm": {}
+	},
+	"commands": {
+		"llvm": {
+			"runner": "https://webc.org/runner/wasi",
+			"annotations": { "atom": { "name": "llvm" }, "wasi": { "atom": "llvm" } }
+		},
+		"clspv": {
+			"runner": "https://webc.org/runner/wasi",
+			"annotations": { "atom": { "name": "llvm" }, "wasi": { "atom": "llvm" } }
+		},
+		"clang++": {
+			"runner": "https://webc.org/runner/wasi",
+			"annotations": { "atom": { "name": "llvm" }, "wasi": { "atom": "llvm" } }
+		},
+		"wasm-ld": {
+			"runner": "https://webc.org/runner/wasi",
+			"annotations": { "atom": { "name": "llvm" }, "wasi": { "atom": "llvm" } }
+		},
+		"spirv-tools-opt": {
+			"runner": "https://webc.org/runner/wasi",
+			"annotations": { "atom": { "name": "llvm" }, "wasi": { "atom": "llvm" } }
+		},
+		"clspv-reflection": {
+			"runner": "https://webc.org/runner/wasi",
+			"annotations": { "atom": { "name": "llvm" }, "wasi": { "atom": "llvm" } }
+		},
+		"cxxfilt": {
+			"runner": "https://webc.org/runner/wasi",
+			"annotations": { "atom": { "name": "llvm" }, "wasi": { "atom": "llvm" } }
+		}
+	},
+	"entrypoint": "llvm"
+}

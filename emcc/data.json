@@ -1,0 +1,27 @@
+{
+    "data": {
+        "getPackage": {
+            "packageName": "llvm-spir",
+            "namespace": "lights0123",
+            "versions": [
+                {
+                    "version": "0.1.0",
+                    "isArchived": false,
+                    "v2": {
+                        "piritaDownloadUrl": null,
+                        "piritaSha256Hash": null,
+                        "webcManifest": null
+                    },
+                    "v3": {
+                        "piritaDownloadUrl": "https://cdn.wasmer.io/webcimages/19e1b693a0c64140b442a762a61be5f69db9e9893092969bec1e1f473128a467.webc",
+                        "piritaSha256Hash": "19e1b693a0c64140b442a762a61be5f69db9e9893092969bec1e1f473128a467",
+                        "webcManifest": "{\"atoms\": {\"llvm\": {\"kind\": \"https://webc.org/kind/wasm\", \"signature\": \"sha256:mSUncNIv9evwXO2otlt4Ffz7IuFrqgJj3yf1+R4566c=\"}}, \"package\": {\"fs\": [{\"from\": null, \"mount_path\": \"/sysroot\", \"volume_name\": \"/wasix-sysroot\"}], \"wapm\": {}}, \"commands\": {\"lld\": {\"runner\": \"https://webc.org/runner/wasi\", \"annotations\": {\"atom\": {\"name\": \"llvm\"}, \"wasi\": {\"atom\": \"llvm\"}}}, \"clang\": {\"runner\": \"https://webc.org/runner/wasi\", \"annotations\": {\"atom\": {\"name\": \"llvm\"}, \"wasi\": {\"env\": [\"PATH=/bin\"], \"atom\": \"llvm\", \"exec-name\": \"clang\"}}}, \"clang++\": {\"runner\": \"https://webc.org/runner/wasi\", \"annotations\": {\"atom\": {\"name\": \"llvm\"}, \"wasi\": {\"atom\": \"llvm\"}}}, \"llvm-ar\": {\"runner\": \"https://webc.org/runner/wasi\", \"annotations\": {\"atom\": {\"name\": \"llvm\"}, \"wasi\": {\"atom\": \"llvm\"}}}, \"llvm-nm\": {\"runner\": \"https://webc.org/runner/wasi\", \"annotations\": {\"atom\": {\"name\": \"llvm\"}, \"wasi\": {\"atom\": \"llvm\"}}}, \"wasm-ld\": {\"runner\": \"https://webc.org/runner/wasi\", \"annotations\": {\"atom\": {\"name\": \"llvm\"}, \"wasi\": {\"atom\": \"llvm\"}}}}, \"entrypoint\": \"clang\"}"
+                    }
+                }
+            ]
+        },
+        "info": {
+            "defaultFrontend": "https://wasmer.io"
+        }
+    }
+}

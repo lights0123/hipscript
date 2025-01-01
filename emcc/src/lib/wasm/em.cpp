@@ -103,6 +103,7 @@ hipError_t EMSCRIPTEN_KEEPALIVE hipFree(void *ptr) {
     device.PushErrorScope(wgpu::ErrorFilter::Validation);
     wgpu::Buffer buffer =
         wgpu::Buffer::Acquire(reinterpret_cast<WGPUBufferImpl *>(ptr));
+    buffer.Destroy();
     buffer = nullptr;
 
     device.PopErrorScope(

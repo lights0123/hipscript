@@ -4,8 +4,19 @@
 	import InfoCircle from 'iconoir/icons/regular/info-circle.svg?raw';
 	import type { RunInfo } from './run';
 
-	let { run, compiling, kernels }: { run: () => void; compiling: boolean; kernels: RunInfo } =
-		$props();
+	let {
+		run,
+		compiling,
+		kernels,
+		samples,
+		selectSample
+	}: {
+		run: () => unknown;
+		compiling: boolean;
+		kernels: RunInfo;
+		samples: Record<string, string>;
+		selectSample: (s: string) => unknown;
+	} = $props();
 
 	let options: { adapter: GPUAdapter; requestAdapterOptions: GPURequestAdapterOptions }[] = $state(
 		[]
@@ -75,6 +86,12 @@
 		limits &&
 			[
 				{
+					unless: !options[selected]?.adapter.isFallbackAdapter,
+					name: 'CPU emulator',
+					desc: 'This option emulates a GPU with the CPU. Using shared memory will result in a performance decrease rather than increase.',
+					warn: true
+				},
+				{
 					name: 'Max threads per block',
 					num: limits.maxComputeInvocationsPerWorkgroup,
 					warn: limits.maxComputeInvocationsPerWorkgroup < 1024,
@@ -101,9 +118,19 @@
 				}
 			].filter(({ unless }) => !unless)
 	);
+
+	const re = /^.*?([^/]*)\.[^./]*$/;
 </script>
 
 <div class="flex h-full flex-col overflow-hidden p-2 dark:bg-slate-900 dark:text-white">
+	Load sample code:
+	<select onchange={(s) => selectSample(s.target!.value)}>
+		{#each Object.keys(samples) as sample}
+			<option value={sample}>
+				{re.exec(sample)![1]}
+			</option>
+		{/each}
+	</select>
 	<h2 class="text-center text-2xl font-bold">Select GPU</h2>
 	<div class="grid grid-cols-2 space-x-2 font-medium">
 		{#each options as o, i}
@@ -127,9 +154,10 @@
 						(limit.warn &&
 							({ info: ' text-blue-800 dark:text-blue-300' }[limit.warnLevel!] ||
 								' text-orange-700 dark:text-orange-300'))}
-					title={(limit.desc || '') + (limit.warn ? limit.warnDesc : '')}
+					title={(limit.desc || '') + (limit.warn ? limit.warnDesc || '' : '')}
 				>
-					{limit.name}: {limit.num}
+					{limit.name + (limit.num == null ? '' : ':')}
+					{limit.num}
 					{#if limit.warn}
 						<span class="ml-1">
 							{@html { info: InfoCircle }[limit.warnLevel!] || ErrorTriangle}
@@ -141,7 +169,10 @@
 	</details>
 	<button
 		onclick={click}
-		class={"mt-2 w-full rounded px-4 py-2 font-bold" + (compiling ? ' bg-red-500 text-white hover:bg-red-700' : ' bg-blue-500 text-white hover:bg-blue-700')}
+		class={'mt-2 w-full rounded px-4 py-2 font-bold' +
+			(compiling
+				? ' bg-red-500 text-white hover:bg-red-700'
+				: ' bg-blue-500 text-white hover:bg-blue-700')}
 	>
 		{#if compiling}
 			Cancel

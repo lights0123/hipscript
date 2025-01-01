@@ -44,50 +44,65 @@ const q = {
 	}
 };
 
-const piritaDownloadUrl = '/lights0123-llvm-spir-0.1.7.webc';
+const piritaDownloadUrl = import.meta.env.VITE_LLVM_URL; // '/lights0123-llvm-spir-0.1.7.webc';
+let registry: string;
+let devicePch: Uint8Array, hostPch: Uint8Array;
+export async function init(term: Terminal) {
+	const cache = await caches.open('my-cache');
+	let b;
+	try {
+		b = URL.createObjectURL(await cache.match(piritaDownloadUrl).then((f) => f.blob()));
+	} catch (_) {
+		// oh well
+	}
+	if (!b) {
+		const res = await fetch(piritaDownloadUrl, {
+			cache: 'no-store'
+		});
+		cache.put(piritaDownloadUrl, res.clone());
 
-const cache = await caches.open('my-cache');
-let b;
-try {
-	b = URL.createObjectURL(await cache.match(piritaDownloadUrl).then((f) => f.blob()));
-} catch (_) {
-	console.error(_);
-}
-if (!b) {
-	const res = await fetch(piritaDownloadUrl, {
-		cache: 'no-store'
-	});
-	await cache.put(piritaDownloadUrl, res);
-	b = URL.createObjectURL(await cache.match(piritaDownloadUrl).then((f) => f.blob()));
-}
-q.data.getPackage.versions[0].v3.piritaDownloadUrl = b;
-const registry = `data:application/json;charset=utf-8,` + JSON.stringify(q);
-// const registry = null;
-// URL.revokeObjectURL(q);
-// const contents = await fetch('/hi.hip').then((f) => f.text());
-const sysroot = '/sysroot';
-const triple = 'wasm32-unknown-emscripten';
+		const values = [];
+		const reader = res.body!.getReader();
+		let loaded = 0;
+		const total = Number.parseInt(import.meta.env.VITE_LLVM_SIZE);
+		term.write('Downloading LLVM [0%]');
+		for (let { done, value } = await reader.read(); !done; { done, value } = await reader.read()) {
+			values.push(value!);
+			loaded += value!.byteLength;
+			term.write(`\rDownloading LLVM [${Math.floor((loaded / total) * 100)}%]`);
+		}
+		term.writeln('\rDownloaded LLVM        ');
 
-const w1 = new CompileWorker();
-const w2 = new CompileWorker();
-w1.postMessage({ contents: '', registry, stage: -1 });
-w2.postMessage({ contents: '', registry, stage: -2 });
-const [{ pch: devicePch }, { pch: hostPch }] = await Promise.all([
-	new Promise((resolve, reject) => {
-		w1.onmessage = ({ data }) => {
-			if (data.type === 'res') resolve(data.data);
-			else if (data.type === 'err') reject(data.err);
-			else if (data.type === 'feedback') console.log(data.data);
-		};
-	}),
-	await new Promise((resolve, reject) => {
-		w2.onmessage = ({ data }) => {
-			if (data.type === 'res') resolve(data.data);
-			else if (data.type === 'err') reject(data.err);
-			else if (data.type === 'feedback') console.log(data.data);
-		};
-	})
-]);
+		b = URL.createObjectURL(new Blob(values));
+	}
+	q.data.getPackage.versions[0].v3.piritaDownloadUrl = b;
+	registry = `data:application/json;charset=utf-8,` + JSON.stringify(q);
+
+	term.writeln('Precompiling headers...');
+	const w1 = new CompileWorker();
+	const w2 = new CompileWorker();
+	w1.postMessage({ contents: '', registry, stage: -1 });
+	w2.postMessage({ contents: '', registry, stage: -2 });
+	const [res1, res2] = await Promise.all([
+		new Promise((resolve, reject) => {
+			w1.onmessage = ({ data }) => {
+				if (data.type === 'res') resolve(data.data);
+				else if (data.type === 'err') reject(data.err);
+				else if (data.type === 'feedback') term.write(data.data.replaceAll('\n', '\r\n'));
+			};
+		}),
+		await new Promise((resolve, reject) => {
+			w2.onmessage = ({ data }) => {
+				if (data.type === 'res') resolve(data.data);
+				else if (data.type === 'err') reject(data.err);
+				else if (data.type === 'feedback') term.write(data.data.replaceAll('\n', '\r\n'));
+			};
+		})
+	]);
+	devicePch = res1.pch;
+	hostPch = res2.pch;
+	setImmediate(() => term.reset());
+}
 
 export interface KernelInfo {
 	name: string;
@@ -105,6 +120,18 @@ export interface RunInfo {
 	kernels: KernelInfo[];
 	allKernels: Iterable<string>;
 }
+
+let codeCache = {
+	contents: '',
+	reflection: '',
+	cl_proc: new Uint8Array(),
+	shader: '',
+	wasm: '',
+	wasmMap: ''
+};
+const cacheCleaner = new FinalizationRegistry<string>((s) => {
+	URL.revokeObjectURL(s);
+});
 
 export async function compile(
 	adapterRequest: GPURequestAdapterOptions,
@@ -124,40 +151,53 @@ export async function compile(
 
 	// Connect the master object to xterm.js
 	xterm.loadAddon(master);
-	let device: GPUDevice;
+	let device: GPUDevice | undefined;
 	try {
-		const w1 = new CompileWorker();
-		w1.postMessage({ contents, registry, pch: devicePch, stage: 0 });
-		const w2 = new CompileWorker();
-		w2.postMessage({ contents, registry, pch: hostPch, stage: 1 });
-		const [{ reflection, cl_proc, shader }, { wasm, wasmMap }] = await Promise.all([
-			new Promise((resolve, reject) => {
-				w1.onmessage = ({ data }) => {
-					if (data.type === 'res') resolve(data.data);
-					else if (data.type === 'err') reject();
-					else if (data.type === 'feedback') {
-						slave.write(data.data);
-						if (data.err) reject();
-					}
-				};
-			}),
-			new Promise((resolve, reject) => {
-				w2.onmessage = ({ data }) => {
-					if (data.type === 'res') resolve(data.data);
-					else if (data.type === 'err') reject();
-					else if (data.type === 'feedback') {
-						slave.write(data.data);
-						if (data.err) reject();
-					}
-				};
-			})
-		]);
-		console.log(wasmMap);
+		let { reflection, cl_proc, shader, wasm, wasmMap } = codeCache;
+		if (codeCache.contents !== contents) {
+			const w1 = new CompileWorker();
+			w1.postMessage({ contents, registry, pch: devicePch, stage: 0 });
+			const w2 = new CompileWorker();
+			w2.postMessage({ contents, registry, pch: hostPch, stage: 1 });
+			const [p1, p2] = await Promise.all([
+				new Promise((resolve, reject) => {
+					w1.onmessage = ({ data }) => {
+						if (data.type === 'res') resolve(data.data);
+						else if (data.type === 'err') reject();
+						else if (data.type === 'feedback') {
+							slave.write(data.data);
+							if (data.err) reject();
+						}
+					};
+				}),
+				new Promise((resolve, reject) => {
+					w2.onmessage = ({ data }) => {
+						if (data.type === 'res') resolve(data.data);
+						else if (data.type === 'err') reject();
+						else if (data.type === 'feedback') {
+							slave.write(data.data);
+							if (data.err) reject();
+						}
+					};
+				})
+			]);
+			reflection = p1.reflection;
+			cl_proc = p1.cl_proc;
+			shader = p1.shader;
+			wasm = URL.createObjectURL(new Blob([p2.wasm], { type: 'application/wasm' }));
+			wasmMap = p2.wasmMap;
+			codeCache = {
+				contents,
+				reflection,
+				cl_proc,
+				shader,
+				wasm,
+				wasmMap
+			};
+			cacheCleaner.register(codeCache, wasm);
+		}
+		// console.log(wasmMap);
 		aborter.throwIfAborted();
-		// console.log(await run('clang++', { args: ['--version'] }, false));
-		// const wasm = {};
-		window.wasm = wasm;
-		window.Module = Module;
 		const supportedLimits = [
 			'maxTextureDimension1D',
 			'maxTextureDimension2D',
@@ -193,10 +233,9 @@ export async function compile(
 			'maxComputeWorkgroupsPerDimension'
 		];
 		const adapter = await navigator.gpu.requestAdapter(adapterRequest);
-		window.wgpuAdapter = adapter;
 
-		function objLikeToObj(src) {
-			const dst = {};
+		function objLikeToObj(src: any) {
+			const dst: any = {};
 			for (const key in src) {
 				if (supportedLimits.includes(key)) dst[key] = src[key];
 			}
@@ -385,7 +424,7 @@ export async function compile(
 					slave.write('\x1b[1;93m' + msg + '\x1b[0m');
 				}
 			},
-			dynamicLibraries: [URL.createObjectURL(new Blob([wasm], { type: 'application/wasm' }))],
+			dynamicLibraries: [wasm],
 			locateFile(path, prefix) {
 				if (path.endsWith('.wasm')) {
 					return ModuleBinary;
@@ -396,7 +435,6 @@ export async function compile(
 		// the first kernel to use printf is really slow without this
 		device.queue.writeBuffer(mod.wgpuPrintfBuffer, 0, new Uint32Array([0]));
 		await Module(mod);
-		window.Module = mod;
 		aborter.throwIfAborted();
 		function kill() {
 			mod._raise(9);
@@ -410,9 +448,9 @@ export async function compile(
 		if (mod.wgpuTimestampReadBuffer) {
 			try {
 				await mod.wgpuTimestampReadBuffer.mapAsync(
-					GPUMapMode.READ
-					// 0,
-					// mod.wgpuTimestampReadBuffer.size,
+					GPUMapMode.READ,
+					0,
+					mod.wgpuTimestampReadBuffer.size
 				);
 				const times = new BigUint64Array(
 					mod.wgpuTimestampReadBuffer.getMappedRange(

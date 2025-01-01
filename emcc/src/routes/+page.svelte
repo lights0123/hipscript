@@ -1,11 +1,16 @@
 <script lang="ts">
-	// import '$lib/run'
 	import { onMount } from 'svelte';
 	import 'xterm/css/xterm.css';
 	import RunControl from '$lib/RunControl.svelte';
 	import { browser } from '$app/environment';
 	import type { Terminal } from '@xterm/xterm';
 	import type { RunInfo } from '$lib/run';
+
+	const samples = import.meta.glob('$lib/samples/*', {
+		query: '?raw',
+		import: 'default',
+		eager: true
+	});
 
 	const terminalTheme = {
 		foreground: '#eff0eb',
@@ -34,6 +39,7 @@
 	const lib: Promise<typeof import('$lib/run')> = browser
 		? import('$lib/run')
 		: ({} as unknown as any);
+	let libInit: Promise<void>;
 	let xterm: Terminal;
 
 	onMount(async () => {
@@ -48,6 +54,10 @@
 		xterm.open(terminalElement);
 		fitAddon.fit();
 		new ResizeObserver(() => fitAddon.fit()).observe(terminalElement);
+
+		xterm.writeln("Initializing...");
+
+		libInit = lib.then((l) => l.init(xterm));
 	});
 
 	let compiling = $state(false);
@@ -57,6 +67,7 @@
 		try {
 			compiling = true;
 			kernels = null;
+			await libInit;
 			kernels = await (await lib).compile(adapter, editorElement.getData(), xterm, aborter);
 		} finally {
 			compiling = false;
@@ -67,7 +78,7 @@
 <div class="flex h-screen w-full">
 	<div class="flex flex-1 flex-col overflow-hidden">
 		{#await import('$lib/Monaco.svelte') then { default: Component }}
-			<Component bind:this={editorElement} />
+			<Component contents={Object.values(samples)[0]} bind:this={editorElement} />
 		{/await}
 		<div
 			style={`background: ${terminalTheme.background}`}
@@ -76,6 +87,12 @@
 		></div>
 	</div>
 	<div class="w-72">
-		<RunControl {run} {compiling} {kernels} />
+		<RunControl
+			{run}
+			{compiling}
+			{kernels}
+			{samples}
+			selectSample={(s) => editorElement?.setData(samples[s])}
+		/>
 	</div>
 </div>

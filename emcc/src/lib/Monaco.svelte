@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import contents from './hi.hip?raw';
 	import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
 	import 'monaco-editor/esm/vs/basic-languages/cpp/cpp.contribution';
 	import 'monaco-editor/esm/vs/editor/editor.all';
@@ -9,12 +8,13 @@
 	let editorElement: HTMLElement;
 	let editor: Monaco.editor.IStandaloneCodeEditor;
 
+	let { contents } = $props();
+
 	const SCHEME = '(prefers-color-scheme: dark)';
 
 	onMount(() => {
 		self.MonacoEnvironment = {
 			getWorker(_, label) {
-				console.log(_, label);
 				return new editorWorker();
 			}
 		};
@@ -41,6 +41,10 @@
 
 	export function getData() {
 		return editor.getValue();
+	}
+
+	export function setData(s: string) {
+		editor.setValue(s);
 	}
 </script>
 

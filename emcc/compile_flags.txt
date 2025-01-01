@@ -24,3 +24,6 @@ wasm32-unknown-emscripten
 -pthread
 --rocm-path=/home/ben/Documents/Projects/cuda-web/hip
 -D__HIP_PLATFORM_SPIRV__
+-nogpulib
+-include hip/spirv_fixups.h
+-include cuspv/cuda_runtime.h

@@ -144,7 +144,7 @@ addToLibrary({
 			);
 			passEncoder.setPipeline(computePipeline);
 			passEncoder.setBindGroup(0, bindGroup);
-			passEncoder.setBindGroup(1, Module.wgpuPrintfBindGroup);
+			passEncoder.setBindGroup(Module.wgpuAnyKernelHasBindings ? 1 : 0, Module.wgpuPrintfBindGroup);
 			passEncoder.dispatchWorkgroups(gx, gy, gz);
 			passEncoder.end();
 

@@ -9,13 +9,15 @@
 		compiling,
 		kernels,
 		samples,
-		selectSample
+		selectSample,
+		outputs
 	}: {
 		run: () => unknown;
 		compiling: boolean;
 		kernels: RunInfo;
 		samples: Record<string, string>;
 		selectSample: (s: string) => unknown;
+		outputs: Record<string, string | Uint8Array>;
 	} = $props();
 
 	let options: { adapter: GPUAdapter; requestAdapterOptions: GPURequestAdapterOptions }[] = $state(
@@ -180,6 +182,19 @@
 			Run
 		{/if}
 	</button>
+	{#each Object.entries(outputs) as [name, output]}
+		<button
+			onclick={() => {
+				const downloadUrl = URL.createObjectURL(new Blob([output]));
+				const a = document.createElement('a');
+				a.href = downloadUrl;
+				a.download = name;
+				document.body.appendChild(a);
+				a.click();
+				URL.revokeObjectURL(downloadUrl);
+			}}>{name}</button
+		>
+	{/each}
 	{#if kernels != null}
 		<div class="mb-1 mt-6 text-center text-2xl font-bold">Kernels Executed</div>
 		<div class="flex w-full text-pretty border-b text-center font-semibold">

@@ -59,10 +59,16 @@ export async function init(term: Terminal) {
 		const res = await fetch(piritaDownloadUrl, {
 			cache: 'no-store'
 		});
-		cache.put(piritaDownloadUrl, res.clone());
+
+		cache.keys().then((keys) => {
+			for (const request of keys) {
+				cache.delete(request);
+			}
+			cache.put(piritaDownloadUrl, res);
+		});
 
 		const values = [];
-		const reader = res.body!.getReader();
+		const reader = res.clone().body!.getReader();
 		let loaded = 0;
 		const total = Number.parseInt(import.meta.env.VITE_LLVM_SIZE);
 		term.write('Downloading LLVM [0%]');
@@ -137,7 +143,8 @@ export async function compile(
 	adapterRequest: GPURequestAdapterOptions,
 	contents: string,
 	xterm: Terminal,
-	aborter: AbortSignal
+	aborter: AbortSignal,
+	download: (name: string, data: string | Uint8Array) => unknown
 ): Promise<RunInfo> {
 	xterm.reset();
 
@@ -186,6 +193,8 @@ export async function compile(
 			shader = p1.shader;
 			wasm = URL.createObjectURL(new Blob([p2.wasm], { type: 'application/wasm' }));
 			wasmMap = p2.wasmMap;
+			download('kernel.csv', reflection);
+			download('kernel.wgsl', shader);
 			codeCache = {
 				contents,
 				reflection,
@@ -297,6 +306,7 @@ export async function compile(
 				}
 			]
 		});
+		const wgpuAnyKernelHasBindings = kernels.values().some((k) => k.args.length);
 		for (const [kernelName, kernel] of kernels) {
 			/** @type GPUBindGroupLayoutEntry[] */
 			const bindGroupLayoutDesc = [];
@@ -333,7 +343,7 @@ export async function compile(
 				});
 				kernel.pipelineLayout = device.createPipelineLayout({
 					bindGroupLayouts: [
-						kernel.bindGroupLayout,
+						...(wgpuAnyKernelHasBindings ? [kernel.bindGroupLayout] : []),
 						// wgpuPrintfGroupLayout,
 						...(kernel.printf ? [wgpuPrintfGroupLayout] : [])
 					]
@@ -355,6 +365,7 @@ export async function compile(
 			wgpuShaderModule: shaderModule,
 			wgpuKernelMap: kernels,
 			wgpuGlobals: {},
+			wgpuAnyKernelHasBindings,
 			wgpuPrintfBuffer,
 			wgpuPrintfStagingBuffer: device.createBuffer({
 				size: 1048576,

@@ -55,20 +55,30 @@
 		fitAddon.fit();
 		new ResizeObserver(() => fitAddon.fit()).observe(terminalElement);
 
-		xterm.writeln("Initializing...");
+		xterm.writeln('Initializing...');
 
 		libInit = lib.then((l) => l.init(xterm));
 	});
 
 	let compiling = $state(false);
 	let kernels: null | RunInfo = $state(null);
+	let outputs: Record<string, string | Uint8Array> = $state({});
 
 	async function run(adapter: GPURequestAdapterOptions, aborter: AbortSignal) {
 		try {
 			compiling = true;
 			kernels = null;
+			outputs = {};
 			await libInit;
-			kernels = await (await lib).compile(adapter, editorElement.getData(), xterm, aborter);
+			kernels = await (
+				await lib
+			).compile(
+				adapter,
+				editorElement.getData(),
+				xterm,
+				aborter,
+				(name, data) => (outputs[name] = data)
+			);
 		} finally {
 			compiling = false;
 		}
@@ -92,6 +102,7 @@
 			{compiling}
 			{kernels}
 			{samples}
+			{outputs}
 			selectSample={(s) => editorElement?.setData(samples[s])}
 		/>
 	</div>

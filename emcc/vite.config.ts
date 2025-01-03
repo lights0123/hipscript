@@ -5,7 +5,7 @@ const headers = {
 	'Cross-Origin-Embedder-Policy': 'require-corp',
 	'Cross-Origin-Opener-Policy': 'same-origin',
 	'Content-Security-Policy':
-		"default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' blob: data:; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; worker-src 'self'"
+		"default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src * data: blob:; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; worker-src 'self'"
 };
 export default defineConfig({
 	plugins: [

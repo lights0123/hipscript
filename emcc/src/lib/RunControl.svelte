@@ -22,9 +22,8 @@
 
 	let gpuSelectionOpen = $state(true);
 
-	let options: { adapter: GPUAdapter; requestAdapterOptions: GPURequestAdapterOptions }[] = $state(
-		[]
-	);
+	let options: { adapter: GPUAdapter; requestAdapterOptions: GPURequestAdapterOptions }[] | null =
+		$state(null);
 	let selected = $state(0);
 	onMount(async () => {
 		const requestAdapterOptionsSets: GPURequestAdapterOptions[] = [
@@ -53,7 +52,6 @@
 			} catch (_) {}
 		}
 		options = [...adapterIds.values()];
-		console.log(options.map((a) => a.adapter.info));
 	});
 
 	let controller = new AbortController();
@@ -61,7 +59,7 @@
 		gpuSelectionOpen = false;
 		if (!compiling) {
 			controller = new AbortController();
-			run(options[selected]?.requestAdapterOptions, controller.signal);
+			run(options?.[selected]?.requestAdapterOptions, controller.signal);
 		} else {
 			controller.abort();
 		}
@@ -86,12 +84,12 @@
 		else return `${(n / 1000000).toFixed(3)}ms`;
 	}
 
-	const limits = $derived(options[selected]?.adapter.limits);
+	const limits = $derived(options?.[selected]?.adapter.limits);
 	const limitDesc = $derived(
 		limits &&
 			[
 				{
-					unless: !options[selected]?.adapter.isFallbackAdapter,
+					unless: !options?.[selected]?.adapter.isFallbackAdapter,
 					name: 'CPU emulator',
 					desc: 'This option emulates a GPU with the CPU. Using shared memory will result in a performance decrease rather than increase.',
 					warn: true
@@ -128,7 +126,7 @@
 </script>
 
 <div class="flex h-full flex-col overflow-hidden p-2 dark:bg-slate-900 dark:text-white">
-	<h1 class="text-center text-3xl font-bold">HipScript</h1>
+	<h1 class="text-center text-3xl font-[650]">HipScript</h1>
 	<p class="text-center font-medium leading-tight">
 		Online compiler for HIP and NVIDIA® CUDA® code to WebGPU
 	</p>
@@ -144,55 +142,71 @@
 			</option>
 		{/each}
 	</select>
-	<details bind:open={gpuSelectionOpen}>
-		<summary class="text-2xl font-semibold">Select GPU</summary>
-		<div class="grid grid-cols-2 space-x-2 font-medium">
-			{#each options as o, i}
-				<button
-					onclick={() => (selected = i)}
-					class={'mb-2 rounded border p-1 capitalize transition-colors' +
-						(i === selected
-							? ' bg-green-200 text-green-950 dark:bg-green-900 dark:text-green-100'
-							: ' bg-transparent text-black dark:text-white')}
-					>{o.adapter.info.vendor} {o.adapter.info.architecture}</button
-				>
-			{/each}
-		</div>
-
-		<p>GPU Information</p>
-		<ul>
-			{#each limitDesc as limit}
-				<li
-					class={'flex' +
-						(limit.warn &&
-							({ info: ' text-blue-800 dark:text-blue-300' }[limit.warnLevel!] ||
-								' text-orange-700 dark:text-orange-300'))}
-					title={(limit.desc || '') + (limit.warn ? limit.warnDesc || '' : '')}
-				>
-					{limit.name + (limit.num == null ? '' : ':')}
-					{limit.num}
-					{#if limit.warn}
-						<span class="ml-1">
-							{@html { info: InfoCircle }[limit.warnLevel!] || ErrorTriangle}
-						</span>
-					{/if}
-				</li>
-			{/each}
-		</ul>
-	</details>
-	<button
-		onclick={click}
-		class={'mt-2 w-full rounded px-4 py-2 font-bold' +
-			(compiling
-				? ' bg-red-500 text-white hover:bg-red-700'
-				: ' bg-blue-500 text-white hover:bg-blue-700')}
-	>
-		{#if compiling}
-			Cancel
+	{#if options && !options.length}
+		<p class="mt-8 text-center text-3xl font-bold mb-2">WebGPU Not Supported</p>
+		{#if window.chrome}
+			<p class="text-center">
+				You might need to enable flags to enable it on your browser. Try launching like:
+			</p>
+			<code>chromium --enable-unsafe-webgpu --enable-features=Vulkan</code>
+			<p class="text-center">or</p>
+			<code>google-chrome --enable-unsafe-webgpu --enable-features=Vulkan</code>
 		{:else}
-			Run
+			<p class="text-center">
+				Please try a Chromium-based browser like Google Chrome or Microsoft Edge.
+			</p>
 		{/if}
-	</button>
+	{:else}
+		<details bind:open={gpuSelectionOpen}>
+			<summary class="text-2xl font-semibold">Select GPU</summary>
+			<div class="grid grid-cols-2 space-x-2 font-medium">
+				{#each options as o, i}
+					<button
+						onclick={() => (selected = i)}
+						class={'mb-2 rounded border p-1 capitalize transition-colors' +
+							(i === selected
+								? ' bg-green-200 text-green-950 dark:bg-green-900 dark:text-green-100'
+								: ' bg-transparent text-black dark:text-white')}
+						>{o.adapter.info.vendor} {o.adapter.info.architecture}</button
+					>
+				{/each}
+			</div>
+
+			<p>GPU Information</p>
+			<ul class="mb-2">
+				{#each limitDesc as limit}
+					<li
+						class={'flex' +
+							(limit.warn &&
+								({ info: ' text-blue-800 dark:text-blue-300' }[limit.warnLevel!] ||
+									' text-orange-700 dark:text-orange-300'))}
+						title={(limit.desc || '') + (limit.warn ? limit.warnDesc || '' : '')}
+					>
+						{limit.name + (limit.num == null ? '' : ':')}
+						{limit.num}
+						{#if limit.warn}
+							<span class="ml-1">
+								{@html { info: InfoCircle }[limit.warnLevel!] || ErrorTriangle}
+							</span>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		</details>
+		<button
+			onclick={click}
+			class={'w-full rounded px-4 py-2 font-bold' +
+				(compiling
+					? ' bg-red-500 text-white hover:bg-red-700'
+					: ' bg-blue-500 text-white hover:bg-blue-700')}
+		>
+			{#if compiling}
+				Cancel
+			{:else}
+				Run
+			{/if}
+		</button>
+	{/if}
 	{#each Object.entries(outputs) as [name, output]}
 		<button
 			onclick={() => {

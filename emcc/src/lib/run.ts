@@ -18,6 +18,40 @@ import 'setimmediate';
 // this is ok since in vite.config.ts we configure web workers to keep their exports
 const Module = import(/* @vite-ignore */ ModulePath);
 
+async function runCompilers<T>(
+	instances: any[],
+	cb: (ev: MessageEvent, resolve: (d: T) => void, reject: (e?: any) => void) => void
+): Promise<T[]> {
+	if (navigator.deviceMemory >= 8) {
+		const workers: Worker[] = [];
+		for (const instance of instances) {
+			const worker = new CompileWorker();
+			worker.postMessage(instance);
+			workers.push(worker);
+		}
+		return await Promise.all(
+			workers.map(
+				(worker) =>
+					new Promise<T>((resolve, reject) => {
+						worker.onmessage = (e) => cb(e, resolve, reject);
+					})
+			)
+		);
+	} else {
+		const res = [];
+		for (const instance of instances) {
+			const worker = new CompileWorker();
+			worker.postMessage(instance);
+			res.push(
+				await new Promise<T>((resolve, reject) => {
+					worker.onmessage = (e) => cb(e, resolve, reject);
+				})
+			);
+		}
+		return res;
+	}
+}
+
 const q = {
 	data: {
 		getPackage: {
@@ -87,26 +121,18 @@ export async function init(term: Terminal) {
 	registry = `data:application/json;charset=utf-8,` + JSON.stringify(q);
 
 	term.writeln('Precompiling headers...');
-	const w1 = new CompileWorker();
-	const w2 = new CompileWorker();
-	w1.postMessage({ contents: '', registry, stage: -1 });
-	w2.postMessage({ contents: '', registry, stage: -2 });
-	const [res1, res2] = await Promise.all([
-		new Promise((resolve, reject) => {
-			w1.onmessage = ({ data }) => {
-				if (data.type === 'res') resolve(data.data);
-				else if (data.type === 'err') reject(data.err);
-				else if (data.type === 'feedback') term.write(data.data.replaceAll('\n', '\r\n'));
-			};
-		}),
-		await new Promise((resolve, reject) => {
-			w2.onmessage = ({ data }) => {
-				if (data.type === 'res') resolve(data.data);
-				else if (data.type === 'err') reject(data.err);
-				else if (data.type === 'feedback') term.write(data.data.replaceAll('\n', '\r\n'));
-			};
-		})
-	]);
+
+	const [res1, res2] = await runCompilers(
+		[
+			{ contents: '', registry, stage: -1 },
+			{ contents: '', registry, stage: -2 }
+		],
+		({ data }, resolve, reject) => {
+			if (data.type === 'res') resolve(data.data);
+			else if (data.type === 'err') reject(data.err);
+			else if (data.type === 'feedback') term.write(data.data.replaceAll('\n', '\r\n'));
+		}
+	);
 	devicePch = res1.pch;
 	hostPch = res2.pch;
 	setImmediate(() => term.reset());
@@ -164,32 +190,20 @@ export async function compile(
 	try {
 		let { reflection, cl_proc, shader, wasm, wasmMap } = codeCache;
 		if (codeCache.contents !== contents) {
-			const w1 = new CompileWorker();
-			w1.postMessage({ contents, registry, pch: devicePch, stage: 0 });
-			const w2 = new CompileWorker();
-			w2.postMessage({ contents, registry, pch: hostPch, stage: 1 });
-			const [p1, p2] = await Promise.all([
-				new Promise((resolve, reject) => {
-					w1.onmessage = ({ data }) => {
-						if (data.type === 'res') resolve(data.data);
-						else if (data.type === 'err') reject();
-						else if (data.type === 'feedback') {
-							slave.write(data.data);
-							if (data.err) reject();
-						}
-					};
-				}),
-				new Promise((resolve, reject) => {
-					w2.onmessage = ({ data }) => {
-						if (data.type === 'res') resolve(data.data);
-						else if (data.type === 'err') reject();
-						else if (data.type === 'feedback') {
-							slave.write(data.data);
-							if (data.err) reject();
-						}
-					};
-				})
-			]);
+			const [p1, p2] = await runCompilers(
+				[
+					{ contents, registry, pch: devicePch, stage: 0 },
+					{ contents, registry, pch: hostPch, stage: 1 }
+				],
+				({ data }, resolve, reject) => {
+					if (data.type === 'res') resolve(data.data);
+					else if (data.type === 'err') reject();
+					else if (data.type === 'feedback') {
+						slave.write(data.data);
+						if (data.err) reject();
+					}
+				}
+			);
 			reflection = p1.reflection;
 			cl_proc = p1.cl_proc;
 			shader = p1.shader;

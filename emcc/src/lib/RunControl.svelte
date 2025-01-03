@@ -3,6 +3,7 @@
 	import ErrorTriangle from 'iconoir/icons/regular/warning-triangle.svg?raw';
 	import InfoCircle from 'iconoir/icons/regular/info-circle.svg?raw';
 	import type { RunInfo } from './run';
+	import downloadFile from './downloadFile';
 
 	let {
 		run,
@@ -131,10 +132,10 @@
 		Online compiler for HIP and NVIDIA® CUDA® code to WebGPU
 	</p>
 	<p class="text-center font-[425]">By Ben Schattinger &bullet; Learn More</p>
-	<small class="">Load sample code:</small>
+	<small class="nojs-hidden">Load sample code:</small>
 	<select
 		onchange={(s) => selectSample(s.target!.value)}
-		class="block w-full rounded-md border-transparent bg-gray-100 p-2 focus:border-gray-500 focus:bg-white focus:ring-0"
+		class="nojs-hidden block w-full rounded-md border-transparent bg-gray-100 p-2 focus:border-gray-500 focus:bg-white focus:ring-0"
 	>
 		{#each Object.keys(samples) as sample}
 			<option value={sample}>
@@ -142,8 +143,11 @@
 			</option>
 		{/each}
 	</select>
+	<noscript>
+		<p class="mb-2 mt-8 text-center text-3xl font-bold">JavaScript Required</p>
+	</noscript>
 	{#if options && !options.length}
-		<p class="mt-8 text-center text-3xl font-bold mb-2">WebGPU Not Supported</p>
+		<p class="mb-2 mt-8 text-center text-3xl font-bold">WebGPU Not Supported</p>
 		{#if window.chrome}
 			<p class="text-center">
 				You might need to enable flags to enable it on your browser. Try launching like:
@@ -157,7 +161,7 @@
 			</p>
 		{/if}
 	{:else}
-		<details bind:open={gpuSelectionOpen}>
+		<details bind:open={gpuSelectionOpen} class="nojs-hidden">
 			<summary class="text-2xl font-semibold">Select GPU</summary>
 			<div class="grid grid-cols-2 space-x-2 font-medium">
 				{#each options as o, i}
@@ -195,7 +199,7 @@
 		</details>
 		<button
 			onclick={click}
-			class={'w-full rounded px-4 py-2 font-bold' +
+			class={'nojs-hidden w-full rounded px-4 py-2 font-bold' +
 				(compiling
 					? ' bg-red-500 text-white hover:bg-red-700'
 					: ' bg-blue-500 text-white hover:bg-blue-700')}
@@ -208,17 +212,7 @@
 		</button>
 	{/if}
 	{#each Object.entries(outputs) as [name, output]}
-		<button
-			onclick={() => {
-				const downloadUrl = URL.createObjectURL(new Blob([output]));
-				const a = document.createElement('a');
-				a.href = downloadUrl;
-				a.download = name;
-				document.body.appendChild(a);
-				a.click();
-				URL.revokeObjectURL(downloadUrl);
-			}}>{name}</button
-		>
+		<button onclick={() => downloadFile(name, output)}>{name}</button>
 	{/each}
 	{#if kernels != null}
 		<div class="mb-1 mt-6 text-center text-2xl font-bold">Kernels Executed</div>

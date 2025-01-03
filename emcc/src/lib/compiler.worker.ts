@@ -50,7 +50,6 @@ async function compile(
 		return bytes ? output.stdoutBytes : output.stdout;
 	}
 	if (stage === -1 || stage === -2) {
-		console.log(`compile headers ${stage}`);
 		const pch = await run('clang++', {
 			args: `${stage === -1 ? deviceArgs : hostArgs} -emit-pch -o - -xhip headers.hh`.split(' '),
 			mount: {

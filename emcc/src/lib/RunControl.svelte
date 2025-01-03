@@ -11,7 +11,8 @@
 		kernels,
 		samples,
 		selectSample,
-		outputs
+		outputs,
+		initOk
 	}: {
 		run: () => unknown;
 		compiling: boolean;
@@ -19,6 +20,7 @@
 		samples: Record<string, string>;
 		selectSample: (s: string) => unknown;
 		outputs: Record<string, string | Uint8Array>;
+		initOk: (ok: boolean) => unknown;
 	} = $props();
 
 	let gpuSelectionOpen = $state(true);
@@ -53,6 +55,7 @@
 			} catch (_) {}
 		}
 		options = [...adapterIds.values()];
+		initOk(!!options.length);
 	});
 
 	let controller = new AbortController();
@@ -134,7 +137,7 @@
 	<p class="text-center font-[425]">By Ben Schattinger &bullet; Learn More</p>
 	<small class="nojs-hidden">Load sample code:</small>
 	<select
-		onchange={(s) => selectSample(s.target!.value)}
+		oninput={(s) => selectSample(s.target!.value)}
 		class="nojs-hidden block w-full rounded-md border-transparent bg-gray-100 p-2 focus:border-gray-500 focus:bg-white focus:ring-0"
 	>
 		{#each Object.keys(samples) as sample}

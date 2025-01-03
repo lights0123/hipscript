@@ -36,11 +36,10 @@
 
 	let terminalElement: HTMLElement;
 	let editorElement: import('$lib/Monaco.svelte').default;
-	const lib: Promise<typeof import('$lib/run')> = browser
-		? import('$lib/run')
-		: ({} as unknown as any);
+	let lib: Promise<typeof import('$lib/run')>;
 	let libInit: Promise<void>;
 	let xterm: Terminal;
+	let isNotOk = false;
 
 	onMount(async () => {
 		const { Terminal } = await import('@xterm/xterm');
@@ -56,13 +55,22 @@
 		new ResizeObserver(() => fitAddon.fit()).observe(terminalElement);
 
 		xterm.writeln('Initializing...');
-
-		libInit = lib.then((l) => l.init(xterm));
+		if (isNotOk) xterm.writeln('Not downloading compiler with unsupported browser');
 	});
 
 	let compiling = $state(false);
 	let kernels: null | RunInfo = $state(null);
 	let outputs: Record<string, string | Uint8Array> = $state({});
+
+	function initOk(ok: boolean) {
+		if (!ok) {
+			isNotOk = true;
+			xterm?.writeln('Not downloading compiler with unsupported browser');
+			return;
+		}
+		lib = import('$lib/run');
+		libInit = lib.then((l) => l.init(xterm));
+	}
 
 	async function run(adapter: GPURequestAdapterOptions, aborter: AbortSignal) {
 		try {
@@ -93,7 +101,10 @@
 	<div class="flex h-full flex-1 flex-col justify-between overflow-hidden">
 		<div class="flex min-h-[60vh] flex-col">
 			{#await import('$lib/Monaco.svelte') then { default: Component }}
-				<Component contents={Object.values(samples)[0]} bind:this={editorElement} />
+				<Component
+					contents={localStorage.getItem('hipscript-content') || Object.values(samples)[0]}
+					bind:this={editorElement}
+				/>
 			{/await}
 		</div>
 		<div
@@ -109,6 +120,7 @@
 			{kernels}
 			{samples}
 			{outputs}
+			{initOk}
 			selectSample={(s) => editorElement?.setData(samples[s])}
 		/>
 	</div>

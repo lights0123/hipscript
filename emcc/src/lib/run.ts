@@ -9,12 +9,14 @@ const ChipVarInitPrefix = '_chip_var_init_';
 import type { Terminal } from '@xterm/xterm';
 import { openpty } from 'xterm-pty';
 import CompileWorker from './compiler.worker?worker';
-import Module from './wasm/webgpu_runtime.mjs';
-import ModulePath from './wasm/webgpu_runtime.mjs?url';
+import ModulePath from './wasm/webgpu_runtime.mjs?worker&url';
 import ModuleBinary from './wasm/webgpu_runtime.wasm?url';
 import llvmManifest from './llvm_manifest.json';
 // avoid Emscripten memory leak
 import 'setimmediate';
+
+// this is ok since in vite.config.ts we configure web workers to keep their exports
+const Module = import(/* @vite-ignore */ ModulePath);
 
 const q = {
 	data: {
@@ -445,7 +447,7 @@ export async function compile(
 		};
 		// the first kernel to use printf is really slow without this
 		device.queue.writeBuffer(mod.wgpuPrintfBuffer, 0, new Uint32Array([0]));
-		await Module(mod);
+		await (await Module).default(mod);
 		aborter.throwIfAborted();
 		function kill() {
 			mod._raise(9);

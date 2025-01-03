@@ -85,18 +85,24 @@
 	}
 </script>
 
-<div class="flex h-screen w-full">
-	<div class="flex flex-1 flex-col overflow-hidden">
-		{#await import('$lib/Monaco.svelte') then { default: Component }}
-			<Component contents={Object.values(samples)[0]} bind:this={editorElement} />
-		{/await}
+<svelte:head>
+	<title>HipScript: Run HIP and CUDA code with WebGPU</title>
+</svelte:head>
+
+<div class="flex w-full flex-col-reverse md:h-screen md:flex-row">
+	<div class="flex h-full flex-1 flex-col justify-between overflow-hidden">
+		<div class="flex min-h-[60vh] flex-col">
+			{#await import('$lib/Monaco.svelte') then { default: Component }}
+				<Component contents={Object.values(samples)[0]} bind:this={editorElement} />
+			{/await}
+		</div>
 		<div
 			style={`background: ${terminalTheme.background}`}
 			class="p-2 pr-0"
 			bind:this={terminalElement}
 		></div>
 	</div>
-	<div class="w-72">
+	<div class="md:w-72">
 		<RunControl
 			{run}
 			{compiling}

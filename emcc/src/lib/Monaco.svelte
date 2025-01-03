@@ -48,4 +48,4 @@
 	}
 </script>
 
-<div bind:this={editorElement} class="h-full w-full"></div>
+<div bind:this={editorElement} class="h-full w-full flex-grow"></div>

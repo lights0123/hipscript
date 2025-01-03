@@ -20,6 +20,8 @@
 		outputs: Record<string, string | Uint8Array>;
 	} = $props();
 
+	let gpuSelectionOpen = $state(true);
+
 	let options: { adapter: GPUAdapter; requestAdapterOptions: GPURequestAdapterOptions }[] = $state(
 		[]
 	);
@@ -56,6 +58,7 @@
 
 	let controller = new AbortController();
 	function click() {
+		gpuSelectionOpen = false;
 		if (!compiling) {
 			controller = new AbortController();
 			run(options[selected]?.requestAdapterOptions, controller.signal);
@@ -121,34 +124,42 @@
 			].filter(({ unless }) => !unless)
 	);
 
-	const re = /^.*?([^/]*)\.[^./]*$/;
+	const re = /^.*?\d*([^/]*)\.[^./]*$/;
 </script>
 
 <div class="flex h-full flex-col overflow-hidden p-2 dark:bg-slate-900 dark:text-white">
-	Load sample code:
-	<select onchange={(s) => selectSample(s.target!.value)}>
+	<h1 class="text-center text-3xl font-bold">HipScript</h1>
+	<p class="text-center font-medium leading-tight">
+		Online compiler for HIP and NVIDIA® CUDA® code to WebGPU
+	</p>
+	<p class="text-center font-[425]">By Ben Schattinger &bullet; Learn More</p>
+	<small class="">Load sample code:</small>
+	<select
+		onchange={(s) => selectSample(s.target!.value)}
+		class="block w-full rounded-md border-transparent bg-gray-100 p-2 focus:border-gray-500 focus:bg-white focus:ring-0"
+	>
 		{#each Object.keys(samples) as sample}
 			<option value={sample}>
 				{re.exec(sample)![1]}
 			</option>
 		{/each}
 	</select>
-	<h2 class="text-center text-2xl font-bold">Select GPU</h2>
-	<div class="grid grid-cols-2 space-x-2 font-medium">
-		{#each options as o, i}
-			<button
-				onclick={() => (selected = i)}
-				class={'my-2 rounded border p-1 capitalize transition-colors' +
-					(i === selected
-						? ' bg-green-200 text-green-950 dark:bg-green-900 dark:text-green-100'
-						: ' bg-transparent text-black dark:text-white')}
-				>{o.adapter.info.vendor} {o.adapter.info.architecture}</button
-			>
-		{/each}
-	</div>
+	<details bind:open={gpuSelectionOpen}>
+		<summary class="text-2xl font-semibold">Select GPU</summary>
+		<div class="grid grid-cols-2 space-x-2 font-medium">
+			{#each options as o, i}
+				<button
+					onclick={() => (selected = i)}
+					class={'mb-2 rounded border p-1 capitalize transition-colors' +
+						(i === selected
+							? ' bg-green-200 text-green-950 dark:bg-green-900 dark:text-green-100'
+							: ' bg-transparent text-black dark:text-white')}
+					>{o.adapter.info.vendor} {o.adapter.info.architecture}</button
+				>
+			{/each}
+		</div>
 
-	<details open>
-		<summary>GPU Information</summary>
+		<p>GPU Information</p>
 		<ul>
 			{#each limitDesc as limit}
 				<li

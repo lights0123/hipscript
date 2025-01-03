@@ -164,19 +164,19 @@
 		<details bind:open={gpuSelectionOpen} class="nojs-hidden">
 			<summary class="text-2xl font-semibold">Select GPU</summary>
 			<div class="grid grid-cols-2 space-x-2 font-medium">
-				{#each options as o, i}
+				{#each options || [] as { adapter: { info } }, i}
 					<button
 						onclick={() => (selected = i)}
 						class={'mb-2 rounded border p-1 capitalize transition-colors' +
 							(i === selected
 								? ' bg-green-200 text-green-950 dark:bg-green-900 dark:text-green-100'
 								: ' bg-transparent text-black dark:text-white')}
-						>{o.adapter.info.vendor} {o.adapter.info.architecture}</button
+						>{info.vendor} {info.vendor === info.architecture ? '' : info.architecture}</button
 					>
 				{/each}
 			</div>
 
-			<p>GPU Information</p>
+			<p class="font-medium">GPU Information</p>
 			<ul class="mb-2">
 				{#each limitDesc as limit}
 					<li

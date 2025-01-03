@@ -32,6 +32,8 @@ const header = {
         extern template class std::vector<int>;`
 };
 
+let runtime: Runtime;
+let f: Wasmer;
 async function compile(
 	contents: string,
 	registry: any,
@@ -40,8 +42,8 @@ async function compile(
 	feedback: (command: string, stdout: string, err?: boolean) => void
 ) {
 	await init();
-	const runtime = new Runtime({ registry });
-	const f = await Wasmer.fromRegistry('lights0123/llvm-spir', runtime);
+	runtime = new Runtime({ registry });
+	f = await Wasmer.fromRegistry('lights0123/llvm-spir', runtime);
 	async function run(name: string, args: SpawnOptions, bytes = true) {
 		const program = await f.commands[name].run(args);
 		const output = await program.wait();
@@ -175,6 +177,8 @@ globalThis.onmessage = async (e) => {
 			}
 		);
 		globalThis.postMessage({ type: 'res', data });
+		f?.free();
+		runtime?.free();
 	} catch (err) {
 		globalThis.postMessage({ type: 'err', err });
 	} finally {

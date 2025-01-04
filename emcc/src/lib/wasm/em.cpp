@@ -84,7 +84,8 @@ hipError_t EMSCRIPTEN_KEEPALIVE hipMalloc(void **ptr, size_t size) {
     RETURN(hipErrorOutOfMemory);
   }
 
-  *ptr = reinterpret_cast<void *>(buffer.MoveToCHandle());
+  *ptr = reinterpret_cast<void *>(
+      reinterpret_cast<uintptr_t>(buffer.MoveToCHandle()) * 8);
   return hipSuccess;
 }
 
@@ -102,7 +103,8 @@ hipError_t EMSCRIPTEN_KEEPALIVE hipFree(void *ptr) {
     d.second = ctx;
     device.PushErrorScope(wgpu::ErrorFilter::Validation);
     wgpu::Buffer buffer =
-        wgpu::Buffer::Acquire(reinterpret_cast<WGPUBufferImpl *>(ptr));
+        wgpu::Buffer::Acquire(reinterpret_cast<WGPUBufferImpl *>(
+            reinterpret_cast<uintptr_t>(ptr) / 8));
     buffer.Destroy();
     buffer = nullptr;
 
@@ -155,7 +157,8 @@ hipError_t EMSCRIPTEN_KEEPALIVE hipGetSymbolAddress(void **DevPtr,
   if (it == VariableBufferMap.end())
     RETURN(hipErrorInvalidSymbol);
 
-  *DevPtr = it->second.Get();
+  *DevPtr = reinterpret_cast<void *>(
+      reinterpret_cast<uintptr_t>(it->second.Get()) * 8);
   return hipSuccess;
 }
 hipError_t EMSCRIPTEN_KEEPALIVE hipMemcpyToSymbol(const void *Symbol,

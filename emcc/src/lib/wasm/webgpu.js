@@ -96,7 +96,7 @@ addToLibrary({
 				}
 				const argLoc = HEAPU32[Args / 4 + +argOrdinal];
 				if (argKind === 'buffer') {
-					const buffer = WebGPU.mgrBuffer.get(HEAPU32[argLoc / 4]);
+					const buffer = WebGPU.mgrBuffer.get(HEAPU32[argLoc / 4] / 8);
 					bindGroups.push({ binding: +binding, resource: { buffer } });
 				} else {
 					uniformRanges[+binding].set(HEAPU8.subarray(argLoc, argLoc + +argSize), +offset);
@@ -285,14 +285,14 @@ addToLibrary({
 			switch (kind) {
 				case 1: {
 					// hipMemcpyHostToDevice
-					const dst = WebGPU.mgrBuffer.get(dstId);
+					const dst = WebGPU.mgrBuffer.get(dstId / 8);
 					window.wgpuDevice.queue.writeBuffer(dst, 0, HEAPU8, srcId, sizeBytes);
 					return 0;
 				}
 				case 2: {
 					// hipMemcpyDeviceToHost
 
-					const src = WebGPU.mgrBuffer.get(srcId);
+					const src = WebGPU.mgrBuffer.get(srcId / 8);
 					const stagingBuffer = window.wgpuDevice.createBuffer({
 						size: sizeBytes,
 						usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
@@ -315,8 +315,8 @@ addToLibrary({
 					return 0;
 				}
 				case 3: // hipMemcpyDeviceToDevice
-					const src = WebGPU.mgrBuffer.get(srcId);
-					const dst = WebGPU.mgrBuffer.get(dstId);
+					const src = WebGPU.mgrBuffer.get(srcId / 8);
+					const dst = WebGPU.mgrBuffer.get(dstId / 8);
 					const commandEncoder = window.wgpuDevice.createCommandEncoder();
 					commandEncoder.copyBufferToBuffer(src, 0, dst, 0, sizeBytes);
 					const commandBuffer = commandEncoder.finish();

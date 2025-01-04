@@ -1,12 +1,16 @@
 [package]
+name = "lights0123/llvm-spir"
+version = "0.1.7"
 entrypoint = "clang"
 
 [fs]
-"/sysroot" = "./wasix-sysroot"
+"/lib/clang" = "./build/lib/clang"
+"/sysroot" = "./em-sysroot-minimal"
+"/hip" = "./hip"
 
 [[module]]
 name = "llvm"
-source = "./build/bin/llvm"
+source = "./llvm-opt-s-stripped.wasm"
 
 [[command]]
 name = "lld"
@@ -19,25 +23,39 @@ module = "llvm"
 runner = "https://webc.org/runner/wasi"
 
 [[command]]
-name = "llvm-nm"
-module = "llvm"
-runner = "https://webc.org/runner/wasi"
-
-[[command]]
-name = "llvm-ar"
-module = "llvm"
-runner = "https://webc.org/runner/wasi"
-
-[[command]]
 name = "clang"
 module = "llvm"
 runner = "https://webc.org/runner/wasi"
-
 [command.annotations.wasi]
 env = ["PATH=/bin"]
 exec-name = "clang"
 
 [[command]]
 name = "clang++"
+module = "llvm"
+runner = "https://webc.org/runner/wasi"
+
+[[command]]
+name = "clspv"
+module = "llvm"
+runner = "https://webc.org/runner/wasi"
+
+[[command]]
+name = "clspv-reflection"
+module = "llvm"
+runner = "https://webc.org/runner/wasi"
+
+[[command]]
+name = "spirv-tools-opt"
+module = "llvm"
+runner = "https://webc.org/runner/wasi"
+
+[[command]]
+name = "cxxfilt"
+module = "llvm"
+runner = "https://webc.org/runner/wasi"
+
+[[command]]
+name = "llvm"
 module = "llvm"
 runner = "https://webc.org/runner/wasi"

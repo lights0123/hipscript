@@ -3,9 +3,10 @@
 !polyfill
 !build.sh
 !hip
-!wasix-sysroot
 !wasmer.toml
 !wasix_toolchain.cmake
 !llvm-project
 !clspv
+clspv/third_party
 !chipStar
+!emcc

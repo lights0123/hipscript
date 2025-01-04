@@ -134,11 +134,11 @@
 	<p class="text-center font-medium leading-tight">
 		Online compiler for HIP and NVIDIA® CUDA® code to WebGPU
 	</p>
-	<p class="text-center font-[425]">By Ben Schattinger &bullet; Learn More</p>
+	<p class="text-center font-[425]">By Ben Schattinger &bullet; <a>Learn More</a></p>
 	<small class="nojs-hidden">Load sample code:</small>
 	<select
 		oninput={(s) => selectSample(s.target!.value)}
-		class="nojs-hidden block w-full rounded-md border-transparent bg-gray-100 p-2 focus:border-gray-500 focus:bg-white focus:ring-0"
+		class="nojs-hidden block w-full rounded-md border-transparent bg-gray-100 p-2 focus:border-gray-500 focus:bg-white focus:ring-0 dark:bg-gray-800 focus:dark:bg-gray-900"
 	>
 		{#each Object.keys(samples) as sample}
 			<option value={sample}>
@@ -166,7 +166,7 @@
 	{:else}
 		<details bind:open={gpuSelectionOpen} class="nojs-hidden">
 			<summary class="text-2xl font-semibold">Select GPU</summary>
-			<div class="grid grid-cols-2 space-x-2 font-medium">
+			<div class={"grid space-x-2 font-medium " + (options?.length > 1 ? 'grid-cols-2' : '')}>
 				{#each options || [] as { adapter: { info } }, i}
 					<button
 						onclick={() => (selected = i)}

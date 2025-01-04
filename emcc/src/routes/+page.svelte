@@ -38,9 +38,12 @@
 	let lib: Promise<typeof import('$lib/run')>;
 	let libInit: Promise<void>;
 	let xterm: Terminal;
-	let isNotOk = false;
 
-	onMount(async () => {
+	let compiling = $state(false);
+	let kernels: null | RunInfo = $state(null);
+	let outputs: Record<string, string | Uint8Array> = $state({});
+
+	async function initOk(ok: boolean) {
 		const { Terminal } = await import('@xterm/xterm');
 		const { FitAddon } = await import('@xterm/addon-fit');
 		xterm = new Terminal({
@@ -48,7 +51,9 @@
 		});
 
 		await import('@xterm/addon-image').then(({ ImageAddon }) => xterm.loadAddon(new ImageAddon()));
-		await import('@xterm/addon-clipboard').then(({ ClipboardAddon }) => xterm.loadAddon(new ClipboardAddon()));
+		await import('@xterm/addon-clipboard').then(({ ClipboardAddon }) =>
+			xterm.loadAddon(new ClipboardAddon())
+		);
 
 		const fitAddon = new FitAddon();
 		xterm.loadAddon(fitAddon);
@@ -57,16 +62,7 @@
 		new ResizeObserver(() => fitAddon.fit()).observe(terminalElement);
 
 		xterm.writeln('Initializing...');
-		if (isNotOk) xterm.writeln('Not downloading compiler with unsupported browser');
-	});
-
-	let compiling = $state(false);
-	let kernels: null | RunInfo = $state(null);
-	let outputs: Record<string, string | Uint8Array> = $state({});
-
-	function initOk(ok: boolean) {
 		if (!ok) {
-			isNotOk = true;
 			xterm?.writeln('Not downloading compiler with unsupported browser');
 			return;
 		}

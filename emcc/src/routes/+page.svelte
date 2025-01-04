@@ -97,7 +97,7 @@
 
 <div class="flex w-full flex-col-reverse md:h-screen md:flex-row">
 	<div class="flex h-full flex-1 flex-col justify-between overflow-hidden">
-		<div class="flex min-h-[60vh] flex-col">
+		<div class="flex min-h-[60vh] flex-1 flex-col md:min-h-0">
 			{#await import('$lib/Monaco.svelte') then { default: Component }}
 				<Component
 					contents={localStorage.getItem('hipscript-content') || Object.values(samples)[0]}

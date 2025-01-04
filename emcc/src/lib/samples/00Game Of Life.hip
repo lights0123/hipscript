@@ -2,8 +2,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "hip/spirv_hip.hh"
-
 #define CHECK_ERR(f)                                                                     \
     if (cudaError_t e = (f)) {                                                           \
         printf("CUDA failure %s:%d: '%s'\n", __FILE__, __LINE__, cudaGetErrorString(e)); \

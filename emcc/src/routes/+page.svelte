@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import 'xterm/css/xterm.css';
 	import RunControl from '$lib/RunControl.svelte';
-	import { browser } from '$app/environment';
 	import type { Terminal } from '@xterm/xterm';
 	import type { RunInfo } from '$lib/run';
 
@@ -47,6 +46,9 @@
 		xterm = new Terminal({
 			theme: terminalTheme
 		});
+
+		await import('@xterm/addon-image').then(({ ImageAddon }) => xterm.loadAddon(new ImageAddon()));
+		await import('@xterm/addon-clipboard').then(({ ClipboardAddon }) => xterm.loadAddon(new ClipboardAddon()));
 
 		const fitAddon = new FitAddon();
 		xterm.loadAddon(fitAddon);

@@ -379,10 +379,22 @@
   resolved "https://registry.yarnpkg.com/@webgpu/types/-/types-0.1.52.tgz#239995418d86de927269aca54cbadfbee04eb03a"
   integrity sha512-eI883Nlag2hGIkhXxAnq8s4APpqXWuPL3Gbn2ghiU12UjLvfCbVqHK4XfXl3eLRTatqcMmeK7jws7IwWsGfbzw==
 
+"@xterm/addon-clipboard@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@xterm/addon-clipboard/-/addon-clipboard-0.1.0.tgz#306f5542b53deb4d8b83a141879de0ea8a851628"
+  integrity sha512-zdoM7p53T5sv/HbRTyp4hY0kKmEQ3MZvAvEtiXqNIHc/JdpqwByCtsTaQF5DX2n4hYdXRPO4P/eOS0QEhX1nPw==
+  dependencies:
+    js-base64 "^3.7.5"
+
 "@xterm/addon-fit@^0.10.0":
   version "0.10.0"
   resolved "https://registry.yarnpkg.com/@xterm/addon-fit/-/addon-fit-0.10.0.tgz#bebf87fadd74e3af30fdcdeef47030e2592c6f55"
   integrity sha512-UFYkDm4HUahf2lnEyHvio51TNGiLK66mqP2JoATy7hRZeXaGMRDr00JiSF7m63vR5WKATF605yEggJKsw0JpMQ==
+
+"@xterm/addon-image@^0.8.0":
+  version "0.8.0"
+  resolved "https://registry.yarnpkg.com/@xterm/addon-image/-/addon-image-0.8.0.tgz#459e13e91b42430043202782fa62319931b29eba"
+  integrity sha512-b/dqpFn3jUad2pUP5UpF4scPIh0WdxRQL/1qyiahGfUI85XZTCXo0py9G6AcOR2QYUw8eJ8EowGspT7BQcgw6A==
 
 "@xterm/xterm@^5.5.0":
   version "5.5.0"
@@ -1038,6 +1050,11 @@ jiti@^1.21.6:
   version "1.21.7"
   resolved "https://registry.yarnpkg.com/jiti/-/jiti-1.21.7.tgz#9dd81043424a3d28458b193d965f0d18a2300ba9"
   integrity sha512-/imKNG4EbWNrVjoNC/1H5/9GFy+tqjGBHCaSsN+P2RnPqjsLmv6UD3Ej+Kj8nBWaRAwyk7kK5ZUc+OEatnTR3A==
+
+js-base64@^3.7.5:
+  version "3.7.7"
+  resolved "https://registry.yarnpkg.com/js-base64/-/js-base64-3.7.7.tgz#e51b84bf78fbf5702b9541e2cb7bfcb893b43e79"
+  integrity sha512-7rCnleh0z2CkXhH67J8K1Ytz0b2Y+yxTPL+/KOJoa20hfnVQ/3/T6W/KflYI4bRHRagNeXeU2bkNGI3v1oS/lw==
 
 json-schema-traverse@^1.0.0:
   version "1.0.0"

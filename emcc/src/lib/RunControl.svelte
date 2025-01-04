@@ -150,7 +150,7 @@
 		<p class="mb-2 mt-8 text-center text-3xl font-bold">JavaScript Required</p>
 	</noscript>
 	{#if options && !options.length}
-		<p class="mb-2 mt-8 text-center text-3xl font-bold">WebGPU Not Supported</p>
+		<p class="mb-2 mt-8 text-center text-3xl font-bold">WebGPU Not Available</p>
 		{#if window.chrome}
 			<p class="text-center">
 				You might need to enable flags to enable it on your browser. Try launching like:

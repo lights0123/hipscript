@@ -17,7 +17,7 @@ let handleMessage = async data => {
 globalThis.onmessage = async ev => {
   if (ev.data.type == "init") {
     const { memory, module, id, sdkUrl } = ev.data;
-    const { init, ThreadPoolWorker } = await import(sdkUrl);
+    const { init, ThreadPoolWorker } = await import(/* @vite-ignore */ sdkUrl);
     await init({ module: module, sdkUrl: sdkUrl, memory: memory });
 
     worker = new ThreadPoolWorker(id);

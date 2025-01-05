@@ -32,6 +32,24 @@ const header = {
         extern template class std::vector<int>;`
 };
 
+function findLowestMissingNumbers(arr: Iterable<number>, count: number) {
+	// Convert to Set for O(1) lookup
+	const numSet = new Set(arr);
+
+	const missing = [];
+	let current = 30;
+
+	// Find 'count' missing numbers
+	while (missing.length < count) {
+		if (!numSet.has(current)) {
+			missing.push(current);
+		}
+		current++;
+	}
+
+	return missing;
+}
+
 let runtime: Runtime;
 let f: Wasmer;
 async function compile(
@@ -44,6 +62,8 @@ async function compile(
 	await init();
 	runtime = new Runtime({ registry });
 	f = await Wasmer.fromRegistry('lights0123/llvm-spir', runtime);
+	function run(name: string, args: SpawnOptions, bytes: false): Promise<string>;
+	function run(name: string, args: SpawnOptions, bytes?: true): Promise<Uint8Array>;
 	async function run(name: string, args: SpawnOptions, bytes = true) {
 		const program = await f.commands[name].run(args);
 		const output = await program.wait();
@@ -110,13 +130,19 @@ async function compile(
 		);
 		// no kernels found
 		if (!reflection) return { reflection, cl_proc: new Uint8Array(), shader: '' };
+
+		// problem: Tint doesn't support pipeline constants as workgroup or
+		// shared memory sizes, but these need to be dynamically specified with
+		// the CUDA launch syntax! Instead, find four numbers not used in the code
+		const replacement_nums = findLowestMissingNumbers(new Uint32Array(cl.buffer), 4);
+
 		const cl_proc = await run('spirv-tools-opt', {
 			args: [
 				'-o',
 				'-',
 				'--strip-nonsemantic',
 				'--set-spec-const-default-value',
-				'0:840 1:841 2:842 3:8453',
+				replacement_nums.map((n, i) => `${i}:${n}`).join(' '),
 				'--freeze-spec-const'
 			],
 			stdin: cl
@@ -130,10 +156,10 @@ override _cuda_shared: u32;
 `;
 		shader += wgsl
 			.replaceAll(/enable chromium_disable_uniformity_analysis;|@stride\(\d+\)/g, '')
-			.replaceAll(/840\w?/g, '_cuda_wgx')
-			.replaceAll(/841\w?/g, '_cuda_wgy')
-			.replaceAll(/842\w?/g, '_cuda_wgz')
-			.replaceAll(/8453\w?/g, '_cuda_shared');
+			.replaceAll(new RegExp(`\\b${replacement_nums[0]}[ui]?\\b`, 'g'), '_cuda_wgx')
+			.replaceAll(new RegExp(`\\b${replacement_nums[1]}[ui]?\\b`, 'g'), '_cuda_wgy')
+			.replaceAll(new RegExp(`\\b${replacement_nums[2]}[ui]?\\b`, 'g'), '_cuda_wgz')
+			.replaceAll(new RegExp(`\\b${replacement_nums[3]}[ui]?\\b`, 'g'), '_cuda_shared');
 		return { reflection, cl_proc, shader };
 	} else if (stage === 1) {
 		const wasm_obj = await run('clang++', {

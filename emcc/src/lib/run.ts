@@ -220,6 +220,9 @@ export async function compile(
 				wasmMap
 			};
 			cacheCleaner.register(codeCache, wasm);
+		} else {
+			download('kernel.csv', reflection);
+			download('kernel.wgsl', shader);
 		}
 		// console.log(wasmMap);
 		aborter.throwIfAborted();

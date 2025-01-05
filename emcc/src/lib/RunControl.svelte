@@ -23,7 +23,13 @@
 		initOk: (ok: boolean) => unknown;
 	} = $props();
 
+	let downloadSelection = $state(null);
 	let gpuSelectionOpen = $state(true);
+
+	$effect(() => {
+		if (downloadSelection) downloadFile(...downloadSelection);
+		downloadSelection = null;
+	});
 
 	let options: { adapter: GPUAdapter; requestAdapterOptions: GPURequestAdapterOptions }[] | null =
 		$state(null);
@@ -166,7 +172,7 @@
 	{:else}
 		<details bind:open={gpuSelectionOpen} class="nojs-hidden">
 			<summary class="text-2xl font-semibold">Select GPU</summary>
-			<div class={"grid space-x-2 font-medium " + (options?.length > 1 ? 'grid-cols-2' : '')}>
+			<div class={'grid space-x-2 font-medium ' + (options?.length > 1 ? 'grid-cols-2' : '')}>
 				{#each options || [] as { adapter: { info } }, i}
 					<button
 						onclick={() => (selected = i)}
@@ -214,9 +220,18 @@
 			{/if}
 		</button>
 	{/if}
-	{#each Object.entries(outputs) as [name, output]}
-		<button onclick={() => downloadFile(name, output)}>{name}</button>
-	{/each}
+
+	{#if Object.keys(outputs).length}
+		<select
+			bind:value={downloadSelection}
+			class="block w-full rounded-md border-transparent bg-gray-100 p-2 focus:border-gray-500 focus:bg-white focus:ring-0 dark:bg-gray-800 focus:dark:bg-gray-900"
+		>
+			<option value={null}>Download intermediate file...</option>
+			{#each Object.entries(outputs) as [name, output]}
+				<option value={[name, output]}>{name}</option>
+			{/each}
+		</select>
+	{/if}
 	{#if kernels != null}
 		<div class="mb-1 mt-6 text-center text-2xl font-bold">Kernels Executed</div>
 		<div class="flex w-full text-pretty border-b text-center font-semibold">

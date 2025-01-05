@@ -177,7 +177,7 @@ void process_printf(const char *&data, const printf_descriptor_map_t &descs,
   size_t next_part = format_string.find_first_of('%');
   if (next_part == std::string::npos) {
     next_part = format_string.size();
-    data = data_end;
+    // data = data_end;
   }
   printf_out << format_string.substr(0, next_part);
 

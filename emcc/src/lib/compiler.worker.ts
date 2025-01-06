@@ -102,7 +102,7 @@ async function compile(
 			}
 			return res;
 		}
-		const data = await run('clang++', {
+		const bc = await run('clang++', {
 			args: `${deviceArgs} -include-pch headers.hh.pch -emit-llvm-bc -emit-llvm-uselists -o - -xhip main.cpp`.split(
 				' '
 			),
@@ -112,7 +112,7 @@ async function compile(
 			cwd: '/home'
 		});
 		const cl = await run('clspv', {
-			stdin: data,
+			stdin: bc,
 			args: `-x ir -arch spir - -enable-printf -max-pushconstant-size 0 -inline-entry-points -uniform-workgroup-size -cl-std=CLC++ -o -`.split(
 				' '
 			)
@@ -120,7 +120,6 @@ async function compile(
 		const reflection = await run(
 			'clspv-reflection',
 			{
-				stdin: data,
 				args: `-d /home/file.spv`.split(' '),
 				mount: {
 					'/home': { 'file.spv': cl }
@@ -160,7 +159,7 @@ override _cuda_shared: u32;
 			.replaceAll(new RegExp(`\\b${replacement_nums[1]}[ui]?\\b`, 'g'), '_cuda_wgy')
 			.replaceAll(new RegExp(`\\b${replacement_nums[2]}[ui]?\\b`, 'g'), '_cuda_wgz')
 			.replaceAll(new RegExp(`\\b${replacement_nums[3]}[ui]?\\b`, 'g'), '_cuda_shared');
-		return { reflection, cl_proc, shader };
+		return { reflection, bc, cl, shader };
 	} else if (stage === 1) {
 		const wasm_obj = await run('clang++', {
 			args: `${hostArgs} -include-pch headers.hh.pch -emit-obj -o - -x hip main.cpp`.split(' '),

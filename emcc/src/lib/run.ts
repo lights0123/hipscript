@@ -149,12 +149,14 @@ export interface KernelInfo {
 export interface RunInfo {
 	kernels: KernelInfo[];
 	allKernels: Iterable<string>;
+	timestampsQuantized: boolean;
 }
 
 let codeCache = {
 	contents: '',
 	reflection: '',
-	cl_proc: new Uint8Array(),
+	bc: new Uint8Array(),
+	cl: new Uint8Array(),
 	shader: '',
 	wasm: '',
 	wasmMap: ''
@@ -181,7 +183,7 @@ export async function compile(
 	xterm.loadAddon(ptyController);
 	let device: GPUDevice | undefined;
 	try {
-		let { reflection, cl_proc, shader, wasm, wasmMap } = codeCache;
+		let { reflection, bc, cl, shader, wasm, wasmMap } = codeCache;
 		if (codeCache.contents !== contents) {
 			const [p1, p2] = await runCompilers(
 				[
@@ -198,25 +200,26 @@ export async function compile(
 				}
 			);
 			reflection = p1.reflection;
-			cl_proc = p1.cl_proc;
+			bc = p1.bc;
+			cl = p1.cl;
 			shader = p1.shader;
 			wasm = URL.createObjectURL(new Blob([p2.wasm], { type: 'application/wasm' }));
 			wasmMap = p2.wasmMap;
-			download('kernel.csv', reflection);
-			download('kernel.wgsl', shader);
 			codeCache = {
 				contents,
 				reflection,
-				cl_proc,
+				bc,
+				cl,
 				shader,
 				wasm,
 				wasmMap
 			};
 			cacheCleaner.register(codeCache, wasm);
-		} else {
-			download('kernel.csv', reflection);
-			download('kernel.wgsl', shader);
 		}
+		download('kernel-ocl.bc', bc);
+		download('kernel.spv', cl);
+		download('kernel.csv', reflection);
+		download('kernel.wgsl', shader);
 		// console.log(wasmMap);
 		aborter.throwIfAborted();
 		const supportedLimits = [
@@ -468,7 +471,8 @@ export async function compile(
 		mod._stop_bg_threads();
 		setImmediate(() => mod._stop_bg_threads());
 
-		if (mod.wgpuTimestampReadBuffer) {
+		let timestampsQuantized = false;
+		if (mod.wgpuTimestampReadBuffer && mod.wgpuKernelsRan.length) {
 			try {
 				await mod.wgpuTimestampReadBuffer.mapAsync(
 					GPUMapMode.READ,
@@ -481,9 +485,14 @@ export async function compile(
 						Math.min(mod.wgpuKernelsRan.length * 16, mod.wgpuTimestampReadBuffer.size)
 					)
 				);
+				timestampsQuantized = true;
 				for (let i = 0; i < times.length / 2; i++) {
-					mod.wgpuKernelsRan[i].duration = Number(times[i * 2 + 1] - times[i * 2]);
+					const duration = Number(times[i * 2 + 1] - times[i * 2]);
+					mod.wgpuKernelsRan[i].duration = duration;
+					if ((duration & 65535) !== 0) timestampsQuantized = false;
 				}
+				console.log(structuredClone(times), mod.wgpuKernelsRan);
+				mod.wgpuTimestampReadBuffer.unmap();
 			} catch (e) {
 				console.error(e);
 			}
@@ -492,7 +501,8 @@ export async function compile(
 			kernels: mod.wgpuKernelsRan,
 			allKernels: [...kernels.keys()].filter(
 				(kernelName) => !kernelName.startsWith(ChipVarInitPrefix)
-			)
+			),
+			timestampsQuantized
 		};
 	} catch (e) {
 		if (e) pty.write('\x1b[1;91m' + e + '\x1b[0m');

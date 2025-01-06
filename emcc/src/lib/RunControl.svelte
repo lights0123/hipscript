@@ -159,7 +159,8 @@
 		<p class="mb-2 mt-8 text-center text-3xl font-bold">WebGPU Not Available</p>
 		{#if window.chrome}
 			<p class="text-center">
-				You might need to enable flags to enable it on your browser. Try launching like:
+				You might need to enable flags to enable it on your browser. Check out about:gpu and
+				about:flags. If you're using Linux, try launching like:
 			</p>
 			<code>chromium --enable-unsafe-webgpu --enable-features=Vulkan</code>
 			<p class="text-center">or</p>
@@ -224,7 +225,7 @@
 	{#if Object.keys(outputs).length}
 		<select
 			bind:value={downloadSelection}
-			class="block w-full rounded-md border-transparent bg-gray-100 p-2 focus:border-gray-500 focus:bg-white focus:ring-0 dark:bg-gray-800 focus:dark:bg-gray-900"
+			class="my-2 block w-full rounded-md border-transparent bg-gray-100 p-2 focus:border-gray-500 focus:bg-white focus:ring-0 dark:bg-gray-800 focus:dark:bg-gray-900"
 		>
 			<option value={null}>Download intermediate file...</option>
 			{#each Object.entries(outputs) as [name, output]}
@@ -233,7 +234,23 @@
 		</select>
 	{/if}
 	{#if kernels != null}
-		<div class="mb-1 mt-6 text-center text-2xl font-bold">Kernels Executed</div>
+		{#if kernels.timestampsQuantized}
+			<details
+				class="mb-1 rounded bg-orange-200 p-2 text-orange-950 dark:bg-orange-950 dark:text-orange-200"
+			>
+				<summary class="font-bold">Runtimes may be quantized</summary>
+				Browsers round timestamps by default to protect your privacy.
+				{#if window.chrome}
+					Enable Chrome flag <a
+						class="font-mono text-sm"
+						href="chrome://flags/#enable-webgpu-developer-features"
+						>enable-webgpu-developer-features</a
+					>
+					to avoid this.
+				{/if}
+			</details>
+		{/if}
+		<div class="mb-1 text-center text-2xl font-bold">Kernels Executed</div>
 		<div class="flex w-full text-pretty border-b text-center font-semibold">
 			<span class="flex-1">NDRange / Grid Size</span>
 			<span class="flex-1">Workgroup / Block Size</span>
@@ -257,7 +274,7 @@
 							<!-- <span class="select-none invisible">{'0'.repeat(digits-(i+1).toString().length)}</span> -->
 							{i + 1}. {demangle(kernel.name)}</span
 						>
-						{#if kernel.duration}
+						{#if 'duration' in kernel}
 							<span title={`${kernel.duration}ns`}>{formatNs(kernel.duration)}</span>
 						{/if}
 					</div>

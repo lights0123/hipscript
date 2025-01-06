@@ -118,6 +118,12 @@ export async function init(term: Terminal) {
 
 	term.writeln('Precompiling headers...');
 
+	try {
+		localStorage.setItem('hipscript-crash', 'true');
+	} catch (_) {}
+	const clearCrash = () => localStorage.removeItem('hipscript-crash');
+	window.addEventListener('pagehide', clearCrash);
+
 	const [res1, res2] = await runCompilers(
 		[
 			{ contents: '', registry, stage: -1 },
@@ -129,6 +135,8 @@ export async function init(term: Terminal) {
 			else if (data.type === 'feedback') term.write(data.data.replaceAll('\n', '\r\n'));
 		}
 	);
+	window.removeEventListener('pagehide', clearCrash);
+	clearCrash();
 	devicePch = res1.pch;
 	hostPch = res2.pch;
 	setImmediate(() => term.reset());

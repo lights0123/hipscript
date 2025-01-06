@@ -63,10 +63,16 @@
 
 		xterm.writeln('Initializing...');
 		if (!ok) {
-			xterm?.writeln('Not downloading compiler with unsupported browser');
+			xterm.writeln('Not downloading compiler with unsupported browser');
 			return;
 		}
 		lib = import('$lib/run');
+		if (localStorage.getItem('hipscript-crash')) {
+			xterm.writeln(
+				'Your browser might have crashed during the last attempt, not starting automatic compilation.'
+			);
+			return;
+		}
 		libInit = lib.then((l) => l.init(xterm));
 	}
 
@@ -75,6 +81,7 @@
 			compiling = true;
 			kernels = null;
 			outputs = {};
+			if (!libInit) libInit = lib.then((l) => l.init(xterm));
 			await libInit;
 			kernels = await (
 				await lib
@@ -107,7 +114,7 @@
 		</div>
 		<div
 			style={`background: ${terminalTheme.background}`}
-			class="p-2 pr-0 h-[424px]"
+			class="h-[424px] p-2 pr-0"
 			bind:this={terminalElement}
 		></div>
 	</div>

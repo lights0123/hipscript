@@ -1,3 +1,5 @@
+#include <cstdio>
+
 __global__ void kernel() {
     printf("Hello World!\n");
 }

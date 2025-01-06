@@ -1,3 +1,6 @@
+#include <cstdio>
+#include <vector>
+
 #define CHECK_ERR(f)                                                                     \
     if (cudaError_t e = (f)) {                                                           \
         printf("CUDA failure %s:%d: '%s'\n", __FILE__, __LINE__, cudaGetErrorString(e)); \
@@ -6,39 +9,52 @@
 
 // Constant memory: Special read-only memory visible to all threads
 // Great for lookup tables and constants used by all threads
+
+// (currently, HipScript emulates constant memory as a standard read-write
+// global variable with no special performance advantages.)
 __constant__ float deviceConstants[256];
 
 // This is a CUDA kernel - code that runs on the GPU
 // __global__ means it's called from CPU and runs on GPU
 // Each thread runs this code independently
-__global__ void simpleKernel(float *input, float *output, int n) {
-    // Thread indexing:
+
+// Kernels can be generic: the compiler will find every usage by the host-side
+// code and generate a corresponding kernel
+template <typename T>
+__global__ void simpleKernel(T *input, T *output, int n) {
+    // Thread indexing with a 1D block and 1D grid:
     // threadIdx.x - position within a block (like a local ID)
     // blockIdx.x - which block this thread is in
     // blockDim.x - size of each block
     // This calculation gives each thread a unique global ID
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    // Shared memory: Fast memory shared between threads in the same block
-    // Must be declared with __shared__
-    __shared__ float sharedData[256];
+    // Shared memory: Fast memory shared between threads in the same block is
+    // declared with __shared__. In this example, every input element is read
+    // twice by different threads within a block, so memory bandwidth is reduced
+    // by moving it on-chip first
+    __shared__ T sharedData[256];
 
     // Load data into shared memory
     // Each thread loads one element
-    sharedData[threadIdx.x] = input[idx];
+    if (idx < n) sharedData[threadIdx.x] = input[idx];
 
     // Synchronize threads in this block
     // All threads must reach this point before any can continue
     __syncthreads();
 
-    // Early exit if this thread is beyond our data size
+    // Early exit if this thread is beyond our data size.
+    // Needed since each block has a fixed size. For example, with a block size
+    // of 256 and a input size of 513, 3 blocks must be launched with the last
+    // one only processing one element.
     if (idx >= n) return;
 
     // Do some computation using shared memory and constant memory
-    float result = sharedData[threadIdx.x] * deviceConstants[threadIdx.x % 256];
+    auto result = sharedData[blockDim.x - threadIdx.x - 1] +
+                  sharedData[threadIdx.x] * deviceConstants[threadIdx.x % 256];
 
-    // Debug print (format string and values are written to a special buffer by the GPU, then
-    // formatted by the CPU afterwards)
+    // Debug print (format string and values are written to a special buffer by
+    // the GPU, then formatted by the CPU afterwards)
     printf("Thread %d computed %f\n", idx, result);
 
     // Write result to global memory
@@ -75,6 +91,7 @@ int main() {
 
     // Copy data to GPU
     CHECK_ERR(cudaMemcpy(deviceInput, hostInput.data(), size, cudaMemcpyHostToDevice));
+    // ToSymbol required for global variables
     CHECK_ERR(cudaMemcpyToSymbol(deviceConstants, hostConstants, 256 * sizeof(float)));
 
     // Launch kernel

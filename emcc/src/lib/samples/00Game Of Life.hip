@@ -1,6 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
+
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 
 #define CHECK_ERR(f)                                                                     \
     if (cudaError_t e = (f)) {                                                           \
@@ -22,10 +24,17 @@ static_assert(WORLD_HEIGHT % 32 == 0);
 #define SHARED_WIDTH (BLOCK_WIDTH + 2)
 #define SHARED_HEIGHT (BLOCK_HEIGHT + 2)
 
+// This is a CUDA kernel - code that runs on the GPU
+// __global__ means it's called from CPU and runs on GPU
+// Each thread runs this code independently
 __global__ void gameOfLife(uint32_t* d_grid, uint32_t* d_newGrid, int width, int height) {
+    // Shared memory: Fast memory shared between threads in the same block is
+    // declared with __shared__. In this example, every input element is read
+    // multiple times by different threads within a block, so memory bandwidth
+    // is reduced by moving it on-chip first
     __shared__ uint32_t sharedMem[SHARED_HEIGHT][SHARED_WIDTH];
 
-    // Calculate global indices
+    // Calculate global indices using a 2D grid and 2D block
     int globalX = blockIdx.x * BLOCK_WIDTH + threadIdx.x;
     int globalY = blockIdx.y * BLOCK_HEIGHT + threadIdx.y;
 
@@ -112,9 +121,6 @@ __global__ void gameOfLife(uint32_t* d_grid, uint32_t* d_newGrid, int width, int
 
     __syncthreads();
 
-    int tid = threadIdx.y * blockDim.x + threadIdx.x;
-    int cellsWritten = blockDim.x * blockDim.y / 32;
-
     // TODO: make more efficient: if warp size == 32, then
     // 31 out of 32 threads sit idle (branch divergence)
     if (threadIdx.x % 32 == 0) {
@@ -148,9 +154,6 @@ void initializeGrid(uint32_t* grid, int width, int height) {
 }
 
 void printGrid(uint32_t* grid, int width, int height) {
-    // Sixel uses 6 pixels per vertical line, so calculate dimensions
-    int sixelHeight = (height + 5) / 6;  // Round up to nearest multiple of 6
-
     // Print sixel header with dimensions
     printf("\033Pq\"1;1;%d;%d\n", width, height);
 

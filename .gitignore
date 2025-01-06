@@ -1,5 +1,6 @@
 /*
 !.gitignore
+!.gitmodules
 !polyfill
 !build.sh
 !hip

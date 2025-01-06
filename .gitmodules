@@ -1,0 +1,7 @@
+[submodule "llvm-project"]
+path = llvm-project
+url = https://github.com/lights0123/llvm-project.git
+branch = hipscript
+[submodule "clspv/third_party/SPIRV-Headers"]
+path = clspv/third_party/SPIRV-Headers
+url = https://github.com/KhronosGroup/SPIRV-Headers

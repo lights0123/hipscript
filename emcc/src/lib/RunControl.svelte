@@ -16,7 +16,7 @@
 	}: {
 		run: () => unknown;
 		compiling: boolean;
-		kernels: RunInfo;
+		kernels?: RunInfo;
 		samples: Record<string, string>;
 		selectSample: (s: string) => unknown;
 		outputs: Record<string, string | Uint8Array>;
@@ -133,6 +133,13 @@
 	);
 
 	const re = /^.*?\d*([^/]*)\.[^./]*$/;
+
+	const kernelStats = $derived(
+		kernels && {
+			maxRuntime: Math.max(...kernels.kernels.map((k) => k.duration || 0)),
+			maxGrid: Math.max(...kernels.kernels.map((k) => k.gx * k.gy * k.gz))
+		}
+	);
 </script>
 
 <div class="flex h-full flex-col overflow-hidden p-2 dark:bg-slate-900 dark:text-white">
@@ -257,8 +264,10 @@
 		</div>
 		<ol class="-mx-2 flex h-full flex-col divide-y overflow-y-auto tabular-nums">
 			{#each kernels?.kernels as kernel, i}
+				{@const blockSize = kernel.bx * kernel.by * kernel.bz}
+				{@const gridSize = kernel.gx * kernel.gy * kernel.gz}
 				<li
-					class={'px-2 py-1' + (kernel.status && ' bg-orange-200 dark:bg-orange-950')}
+					class={'z-0 px-2 py-1' + (kernel.status && ' bg-orange-200 dark:bg-orange-950')}
 					title={kernel.status}
 				>
 					{#if kernel.status}
@@ -269,22 +278,35 @@
 							</span>
 						</span>
 					{/if}
-					<div class="flex justify-between">
-						<span>
-							<!-- <span class="select-none invisible">{'0'.repeat(digits-(i+1).toString().length)}</span> -->
-							{i + 1}. {demangle(kernel.name)}</span
+					<div class="grid grid-cols-3">
+						<span class="col-span-2 line-clamp-1 overflow-ellipsis" title={demangle(kernel.name)}>
+							{i + 1}. <span class="font-mono">{demangle(kernel.name)}</span></span
 						>
 						{#if 'duration' in kernel}
-							<span title={`${kernel.duration}ns`}>{formatNs(kernel.duration)}</span>
+							<span class="relative text-right" title={`${kernel.duration}ns`}>
+								<div
+									class="absolute right-0 -z-10 h-full bg-fuchsia-200 dark:bg-fuchsia-950"
+									style={`width: ${(kernel.duration / kernelStats!.maxRuntime) * 100}%`}
+								></div>
+								{formatNs(kernel.duration)}
+							</span>
 						{/if}
 					</div>
-					<div class="flex justify-between space-x-1">
-						<span class="line-clamp-1 overflow-ellipsis"
-							>{kernel.gx}×{kernel.gy}×{kernel.gz} ({kernel.gx * kernel.gy * kernel.gz})</span
-						>
-						<span class="line-clamp-1 overflow-ellipsis"
-							>{kernel.bx}×{kernel.by}×{kernel.bz} ({kernel.bx * kernel.by * kernel.bz})</span
-						>
+					<div class="grid grid-cols-2 space-x-1">
+						<span class="relative line-clamp-1 overflow-ellipsis">
+							<div
+								class="absolute right-0 -z-10 h-full bg-blue-200 dark:bg-blue-900"
+								style={`width: ${(gridSize / kernelStats!.maxGrid) * 100}%`}
+							></div>
+							{kernel.gx}×{kernel.gy}×{kernel.gz} ({gridSize})
+						</span>
+						<span class="relative line-clamp-1 overflow-ellipsis text-right">
+							<div
+								class="absolute right-0 -z-10 h-full bg-sky-200 dark:bg-sky-900"
+								style={`width: ${(blockSize / 1024) * 100}%`}
+							></div>
+							{kernel.bx}×{kernel.by}×{kernel.bz} ({blockSize})
+						</span>
 					</div>
 				</li>
 			{:else}

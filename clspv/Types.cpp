@@ -376,7 +376,6 @@ Type *clspv::InferType(Value *v, LLVMContext &context,
     (*cache)[v] = ty;
     return ty;
   };
-
   // Return the source data interpretation type.
   if (auto *gep = dyn_cast<GEPOperator>(v)) {
     return CacheType(gep->getResultElementType());
@@ -440,6 +439,7 @@ Type *clspv::InferType(Value *v, LLVMContext &context,
   // If we have not figured out the type yet and the value is a kernel function
   // argument, deduce it from the arg info metadata if enabled.
   if (clspv::Option::KernelArgInfo() && isa<Argument>(v)) {
+    outs() << "INFERRING\n";
     auto arg = cast<Argument>(v);
     auto kernelFn = arg->getParent();
     if (kernelFn->getCallingConv() == CallingConv::SPIR_KERNEL) {

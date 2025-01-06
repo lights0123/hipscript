@@ -8,5 +8,4 @@
 !llvm-project
 !clspv
 clspv/third_party
-!chipStar
 !emcc

@@ -30,7 +30,13 @@ set(CLSPV_LLVM_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/../..)
 set(CLSPV_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 set(SPIRV_HEADERS_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(CLSPV_INCLUDE_DIRS  ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(SPIRV-Headers_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(SPIRV_TOOLS_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/SPIRV-Tools)
+add_subdirectory(${SPIRV_TOOLS_SOURCE_DIR})
+target_compile_options(SPIRV-Tools-opt PRIVATE "-w")
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/reflection)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tools)
 
 add_llvm_executable(clspv
 ${CMAKE_CURRENT_SOURCE_DIR}/Compiler.cpp
@@ -133,7 +139,7 @@ include_directories(${CLANG_INCLUDE_DIRS})
 include_directories(${CLSPV_INCLUDE_DIRS})
 include_directories(${CLSPV_BINARY_DIR}/include)
 include_directories(${CLSPV_BINARY_DIR}/../clang/include)
-set_property(GLOBAL APPEND PROPERTY LLVM_DRIVER_TOOLS clspv)
+# set_property(GLOBAL APPEND PROPERTY LLVM_DRIVER_TOOLS clspv)
 
 # Pass library.  Transformation passes and pass-specific support are
 # defined here.  This must be loadable by LLVM opt for testing individual

@@ -161,7 +161,8 @@ void clspv::PrintfPass::DefinePrintfInstance(Module &M, CallInst *CI,
   auto *PrintfIDGEP = GetElementPtrInst::Create(
       BufferTy, Buffer, {ConstantZero, ConstantZero, Offset});
   IR.Insert(PrintfIDGEP);
-  IR.CreateStore(ConstantPrintfID, PrintfIDGEP);
+  IR.CreateStore(ConstantPrintfID, PrintfIDGEP)
+      ->setAtomic(AtomicOrdering::SequentiallyConsistent);
   IR.CreateBr(ExitBB);
 
   //
@@ -211,7 +212,8 @@ void clspv::PrintfPass::DefinePrintfInstance(Module &M, CallInst *CI,
       ArgStoreGEP = IR.CreatePointerCast(ArgStoreGEP, NewTy);
     }
 
-    IR.CreateStore(Arg, ArgStoreGEP);
+    IR.CreateStore(Arg, ArgStoreGEP)
+        ->setAtomic(AtomicOrdering::SequentiallyConsistent);
     auto *StoreSize =
         ConstantInt::get(Int32Ty, DL.getTypeStoreSize(Arg->getType()) / 4);
     if (i + 1 < Func->arg_size()) {

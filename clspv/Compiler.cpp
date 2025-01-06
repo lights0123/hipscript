@@ -75,17 +75,8 @@ using namespace clang;
 namespace {
 enum class SPIRArch : uint32_t {
   SPIR = 0,
-  SPIR32,
   SPIR64,
 };
-
-// This registration must be located in the same file as the execution of the
-// action.
-static FrontendPluginRegistry::Add<clspv::ExtraValidationASTAction>
-    X("extra-validation",
-      "Perform extra validation on OpenCL C when targeting Vulkan");
-static FrontendPluginRegistry::Add<clspv::EntryPointAttrsASTAction>
-    Y("attr-information-getting", "get those attrs");
 
 static llvm::cl::opt<bool> cl_single_precision_constants(
     "cl-single-precision-constant", llvm::cl::init(false),
@@ -180,8 +171,6 @@ static llvm::cl::opt<SPIRArch> target_arch(
     llvm::cl::values(
         clEnumValN(SPIRArch::SPIR, "spir",
                    "spir-unknown-unknown target (pointers are 32-bit)"),
-        clEnumValN(SPIRArch::SPIR32, "spir32",
-                   "spir32-unknown-unknown target (pointers are 32-bit)"),
         clEnumValN(SPIRArch::SPIR64, "spir64",
                    "spir64-unknown-unknown target (pointers are 64-bit)")));
 
@@ -396,7 +385,7 @@ int SetCompilerInstanceOptions(
 
   // Select the correct SPIR triple
   llvm::Triple triple{target_arch == SPIRArch::SPIR64 ? "spir64-unknown-unknown"
-                                                      : (target_arch == SPIRArch::SPIR32 ? "spir32-unknown-unknown" : "spir-unknown-unknown")};
+                                                      : "spir-unknown-unknown"};
 
   // We manually include the OpenCL headers below, so this vector is unused.
   std::vector<std::string> includes;
@@ -1402,5 +1391,12 @@ ClspvError clspvCompileFromSourcesString(
 }
 
 int clspv_main(int argc, char **argv, const llvm::ToolContext &) {
+  // This registration must be located in the same file as the execution of the
+  // action.
+  static FrontendPluginRegistry::Add<clspv::ExtraValidationASTAction>
+      X("extra-validation",
+        "Perform extra validation on OpenCL C when targeting Vulkan");
+  static FrontendPluginRegistry::Add<clspv::EntryPointAttrsASTAction>
+      Y("attr-information-getting", "get those attrs");
   return clspv::Compile(argc, argv);
 }

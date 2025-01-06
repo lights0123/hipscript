@@ -107,7 +107,7 @@
 		</div>
 		<div
 			style={`background: ${terminalTheme.background}`}
-			class="p-2 pr-0"
+			class="p-2 pr-0 h-[424px]"
 			bind:this={terminalElement}
 		></div>
 	</div>

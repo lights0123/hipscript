@@ -1,11 +1,3 @@
-// @ts-check
-
-/// <reference path="./types.d.ts" />
-/// <reference types="../../node_modules/@webgpu/types" />
-
-const ChipVarPrefix = '_chip_var_';
-const ChipVarInitPrefix = '_chip_var_init_';
-
 import type { Terminal } from '@xterm/xterm';
 import { openpty } from 'xterm-pty';
 import CompileWorker from './compiler.worker?worker';
@@ -14,6 +6,9 @@ import ModuleBinary from './wasm/webgpu_runtime.wasm?url';
 import llvmManifest from './llvm_manifest.json';
 // avoid Emscripten memory leak
 import 'setimmediate';
+
+const ChipVarPrefix = '_chip_var_';
+const ChipVarInitPrefix = '_chip_var_init_';
 
 // this is ok since in vite.config.ts we configure web workers to keep their exports
 const Module = import(/* @vite-ignore */ ModulePath);
@@ -69,6 +64,7 @@ const q = {
 					v3: {
 						// not checked, but length validated
 						piritaSha256Hash: '0000000000000000000000000000000000000000000000000000000000000000',
+						piritaDownloadUrl: '',
 						webcManifest: JSON.stringify(llvmManifest)
 					}
 				}
@@ -80,14 +76,14 @@ const q = {
 	}
 };
 
-const piritaDownloadUrl = import.meta.env.VITE_LLVM_URL; // '/lights0123-llvm-spir-0.1.7.webc';
+const piritaDownloadUrl = import.meta.env.VITE_LLVM_URL;
 let registry: string;
 let devicePch: Uint8Array, hostPch: Uint8Array;
 export async function init(term: Terminal) {
 	const cache = await caches.open('my-cache');
 	let b;
 	try {
-		b = URL.createObjectURL(await cache.match(piritaDownloadUrl).then((f) => f.blob()));
+		b = URL.createObjectURL(await cache.match(piritaDownloadUrl).then((f) => f!.blob()));
 	} catch (_) {
 		// oh well
 	}
@@ -173,19 +169,16 @@ export async function compile(
 	xterm: Terminal,
 	aborter: AbortSignal,
 	download: (name: string, data: string | Uint8Array) => unknown
-): Promise<RunInfo> {
+): Promise<RunInfo | undefined> {
 	xterm.reset();
 
 	aborter.throwIfAborted();
 
 	// Create master/slave objects
-	let { master, slave } = openpty();
-
-	window.master = master;
-	window.slave = slave;
+	let { master: ptyController, slave: pty } = openpty();
 
 	// Connect the master object to xterm.js
-	xterm.loadAddon(master);
+	xterm.loadAddon(ptyController);
 	let device: GPUDevice | undefined;
 	try {
 		let { reflection, cl_proc, shader, wasm, wasmMap } = codeCache;
@@ -199,7 +192,7 @@ export async function compile(
 					if (data.type === 'res') resolve(data.data);
 					else if (data.type === 'err') reject();
 					else if (data.type === 'feedback') {
-						slave.write(data.data);
+						pty.write(data.data);
 						if (data.err) reject();
 					}
 				}
@@ -278,7 +271,7 @@ export async function compile(
 		const timestamp = device.features.has('timestamp-query');
 		window.wgpuDevice = device;
 		device.onuncapturederror = (e) => {
-			slave.write('\x1b[1;91m' + e.error.message + '\x1b[0m');
+			pty.write('\x1b[1;91m' + e.error.message + '\x1b[0m');
 		};
 
 		device.pushErrorScope('validation');
@@ -379,7 +372,7 @@ export async function compile(
 		let mod = {
 			ModuleBinary,
 			mainScriptUrlOrBlob: ModulePath,
-			pty: slave,
+			pty: pty,
 			preinitializedWebGPUDevice: device,
 			wgpuShaderModule: shaderModule,
 			wgpuKernelMap: kernels,
@@ -426,8 +419,8 @@ export async function compile(
 			 */
 			onExit(code, ...args) {
 				console.log('onExit');
-				slave.write(code !== 0 ? '\x1b[1;91m' : '\x1b[1m');
-				slave.write(`Process exited with code ${code}\n`);
+				pty.write(code !== 0 ? '\x1b[1;91m' : '\x1b[1m');
+				pty.write(`Process exited with code ${code}\n`);
 				resolve(null);
 			},
 			onAbort(msg) {
@@ -440,7 +433,7 @@ export async function compile(
 				console.log('errmsg', msg);
 				if (msg.startsWith('worker sent an error')) return;
 				if (msg.startsWith('WORKER_STACK')) {
-					slave.write(
+					pty.write(
 						'\x1b[1;91m' +
 							msg
 								.substring(13)
@@ -451,7 +444,7 @@ export async function compile(
 					);
 					mod._raise(9);
 				} else {
-					slave.write('\x1b[1;93m' + msg + '\x1b[0m');
+					pty.write('\x1b[1;93m' + msg + '\x1b[0m');
 				}
 			},
 			dynamicLibraries: [wasm],
@@ -502,11 +495,11 @@ export async function compile(
 			)
 		};
 	} catch (e) {
-		if (e) slave.write('\x1b[1;91m' + e + '\x1b[0m');
+		if (e) pty.write('\x1b[1;91m' + e + '\x1b[0m');
 	} finally {
 		console.log('dispose');
 		device?.destroy();
-		master.dispose();
-		slave = null;
+		ptyController.dispose();
+		pty = null;
 	}
 }

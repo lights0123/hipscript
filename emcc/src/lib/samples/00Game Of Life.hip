@@ -18,7 +18,7 @@
 
 // Must be multiple of 32 for bit-packing
 static_assert(WORLD_WIDTH % 32 == 0);
-static_assert(WORLD_HEIGHT % 32 == 0);
+static_assert(WORLD_HEIGHT % BLOCK_HEIGHT == 0);
 
 // For storing expanded state in shared memory (including halo cells)
 #define SHARED_WIDTH (BLOCK_WIDTH + 2)

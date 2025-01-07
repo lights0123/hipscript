@@ -149,6 +149,7 @@
 	</p>
 	<p class="text-center font-[425]">
 		By Ben Schattinger &bullet; <a
+			class="text-blue-700 underline dark:text-blue-300"
 			href="https://lights0123.com/blog/2025/01/07/hip-script/"
 			rel="noopener"
 			target="_blank">Learn More</a

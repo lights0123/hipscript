@@ -100,6 +100,7 @@
 
 <svelte:head>
 	<title>HipScript: Run HIP and CUDA code with WebGPU</title>
+	<meta name="description" content="Online compiler for HIP and NVIDIA® CUDA® code to WebGPU" />
 </svelte:head>
 
 <div class="flex w-full flex-col-reverse md:h-screen md:flex-row">

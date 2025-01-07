@@ -147,7 +147,13 @@
 	<p class="text-center font-medium leading-tight">
 		Online compiler for HIP and NVIDIA® CUDA® code to WebGPU
 	</p>
-	<p class="text-center font-[425]">By Ben Schattinger &bullet; <a>Learn More</a></p>
+	<p class="text-center font-[425]">
+		By Ben Schattinger &bullet; <a
+			href="https://lights0123.com/blog/2025/01/07/hip-script/"
+			rel="noopener"
+			target="_blank">Learn More</a
+		>
+	</p>
 	<small class="nojs-hidden">Load sample code:</small>
 	<select
 		oninput={(s) => selectSample(s.target!.value)}

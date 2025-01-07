@@ -10,3 +10,4 @@
 !clspv
 clspv/third_party
 !emcc
+!README.md

@@ -329,7 +329,7 @@ export async function compile(
 				}
 			]
 		});
-		const wgpuAnyKernelHasBindings = kernels.values().some((k) => k.args.length);
+		const wgpuAnyKernelHasBindings = [...kernels.values()].some((k) => k.args.length);
 		for (const [kernelName, kernel] of kernels) {
 			/** @type GPUBindGroupLayoutEntry[] */
 			const bindGroupLayoutDesc = [];
